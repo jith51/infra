@@ -1,0 +1,5 @@
+development:
+  url: <%= ENV['CAS_URL']
+
+test:
+  url: <%= ENV['CAS_URL']

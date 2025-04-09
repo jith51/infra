@@ -1,0 +1,68 @@
+#import './fragment/equipement.fragment.gql'
+#import './fragment/switch.fragment.gql'
+
+query devices(
+  $_limit: Int
+  $_page: Int
+  $hostname: String
+  $deviceFamilyIds: [Int!]
+  $devicePlatformIdIds: [Int!]
+  $deviceSoftwareTypeIds: [Int!]
+  $deviceSeriesIds: [Int!]
+  $deviceTypeIds: [Int!]
+  $deviceRoleIds: [Int!]
+) {
+  devices(
+    _limit: $_limit
+    _page: $_page
+    hostname: $hostname
+    deviceFamilyIds: $deviceFamilyIds
+    devicePlatformIdIds: $devicePlatformIdIds
+    deviceSoftwareTypeIds: $deviceSoftwareTypeIds
+    deviceSeriesIds: $deviceSeriesIds
+    deviceTypeIds: $deviceTypeIds
+    deviceRoleIds: $deviceRoleIds
+  ) {
+    id
+    description
+    hostname
+    softwareVersion
+    macAddress
+    serialNumber
+    managementIp
+    location
+    uuid
+    deviceFamily {
+      name
+    }
+    devicePlatformId {
+      name
+    }
+    deviceSoftwareType {
+      name
+    }
+    deviceSeries {
+      name
+    }
+    deviceType {
+      name
+    }
+    deviceRole {
+      name
+    }
+    switches {
+      ...SwitchFragment
+    }    
+    equipements {
+      ...EquipementFragment
+    }
+    eolBulletins {
+      number
+      name
+      eolType
+      url
+      endOfLifeDate
+      lastDateOfSupport
+    }
+  }
+}

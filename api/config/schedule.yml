@@ -1,0 +1,9 @@
+apic:
+   cron: "0 1 * * *"
+   class: "LoadApicJob"
+serveur_apic:
+   cron: "15 1 * * *"
+   class: "LoadApicServeurJob"
+dna:
+   cron: "30 1 * * *"
+   class: "LoadDevicesJob"

@@ -1,0 +1,31 @@
+query contrats {
+ 	contrats {
+    name
+    usedFilters {
+      type
+      vzFilter {
+        name
+      }
+    }
+    usedContrats {
+      type
+      contractable {
+        __typename
+        name
+        ... on Epg {
+          serveurs {
+            name
+            powerstate
+            os
+          }
+          applicationProfile {
+            name
+            tenant {
+              name
+            }
+          }
+        }
+      }
+    }
+  }
+}

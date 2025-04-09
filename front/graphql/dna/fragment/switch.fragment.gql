@@ -1,0 +1,20 @@
+#import './equipement.fragment.gql'
+
+fragment SwitchFragment on Switch {
+  description
+  uuid
+  macAddress
+  serialNumber
+  role
+  stackMemberNumber
+  softwareImage
+  switchPlatformId {
+    name
+  }
+  equipementType {
+    name
+  }
+  equipements {
+    ...EquipementFragment
+  }
+}

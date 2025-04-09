@@ -1,0 +1,69 @@
+fragment ApplicationProfilesFragment on ApplicationProfiles {
+  name
+  tenant {
+    name
+  }
+  epgs {
+    name
+    domaineAttributs {
+      name
+    }
+    pathAttributs {
+      name
+    }
+    domaine {
+      name
+      contexts {
+        name
+        providedContrats {
+          contrat {
+            name
+            usedInFilters {
+              vzFilter {
+                name
+              } 
+            }
+            usedOutFilters {
+              vzFilter {
+                name
+              } 
+            }              
+            usedSubFilters {
+              vzFilter {
+                name
+              } 
+            }
+          }
+        }
+        consumedContrats {
+          contrat {
+            name
+          }
+        }          
+      }
+      L3Outs {
+        name
+        providedContrats {
+          contrat {
+            name
+          }
+        }
+        consumedContrats {
+          contrat {
+            name
+          }
+        }          
+      }
+    }
+    providedContrats {
+      contrat {
+        name
+      }
+    }
+    consumedContrats {
+      contrat {
+        name
+      }
+    }
+  }
+}

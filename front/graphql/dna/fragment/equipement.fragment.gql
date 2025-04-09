@@ -1,0 +1,12 @@
+fragment EquipementFragment on Equipement {
+  name
+  description
+  serialNumber
+  uuid
+  productId {
+    name
+  }
+  equipementType {
+    name
+  }
+}

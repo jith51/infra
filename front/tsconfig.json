@@ -1,0 +1,15 @@
+{
+  // https://v3.nuxtjs.org/concepts/typescript
+  "extends": "./.nuxt/tsconfig.json",
+  "vueCompilerOptions": {
+    "plugins": []
+  },
+  "compilerOptions": { 
+    "strict": true,
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./*"],
+    }, 
+    "moduleResolution": "Node"
+    }
+}

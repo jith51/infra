@@ -1,0 +1,24 @@
+module AuthGql
+    module Mutations
+        class UserLogin < ::Mutations::BaseMutation
+            include UserSession
+
+            argument :email, String, required: true
+            argument :password, String, required: true
+
+            field :token, String, null: true
+
+            def resolve(**args)
+                user = User.find_by_email(args[:email])
+                if user&.authenticate(args[:password])
+                    # create_session : lib UserSession module
+                    token = create_session(user.id)
+                else
+                    token = ""
+                    raise Errors::AuthenticationError, 'permission denied'
+                end
+                { token: token }
+            end            
+        end
+    end
+end  

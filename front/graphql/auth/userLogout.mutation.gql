@@ -1,0 +1,7 @@
+mutation userLogout($fake: String) {
+  userLogout(input: {
+		fake: $fake
+	}) {
+		fake
+	}
+}

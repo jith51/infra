@@ -1,0 +1,34 @@
+query deviceTables{
+  deviceTables {
+    devicePlatformIds {
+      id
+      name
+      numberOfDevices
+    }
+    deviceSoftwareTypes {
+      id
+      name
+      numberOfDevices
+    }
+    deviceSeries {
+      id
+      name
+      numberOfDevices
+    }
+    deviceTypes {
+      id
+      name
+      numberOfDevices
+    }
+    deviceRoles {
+      id
+      name
+      numberOfDevices
+    }
+    deviceFamilies {
+      id
+      name
+      numberOfDevices
+    }
+  }
+}

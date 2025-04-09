@@ -1,0 +1,78 @@
+query apic {
+ 	tenants {
+    name
+    L3Outs {
+    usedContrats {
+        type
+        contrat {
+          name
+          usedFilters {
+            vzFilter {
+              name
+            }
+          }
+        }
+      }
+    }
+    applicationProfiles {
+      name
+      epgs {
+        name
+        domaine {
+          name
+        }
+        serveurs {
+          name
+          powerstate
+          os
+        }
+        usedContrats {
+          type
+          contrat {
+            id
+            name
+            usedFilters {
+              type
+              vzFilter {
+                name
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+  contrats {
+    id
+    name
+    usedFilters {
+      type
+      vzFilter {
+        name
+      }
+    }
+    usedContrats {
+      type
+      contractable {
+        __typename
+        name
+        ... on Epg {
+          serveurs {
+            name
+            powerstate
+            os
+          }
+          applicationProfile {
+            name
+            tenant {
+              name
+            }
+          }
+        }
+      }
+    }
+  }
+  tasks {
+    name
+  }
+}

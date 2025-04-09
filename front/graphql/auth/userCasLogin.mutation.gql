@@ -1,0 +1,13 @@
+mutation userCasLogin(
+  $ticket: String!
+  $service: String!
+
+) {
+  userCasLogin(input: {
+      ticket: $ticket
+      service: $service
+  }) {
+   token
+   user
+  }
+}

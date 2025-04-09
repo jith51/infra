@@ -7,5 +7,4 @@ RUN mkdir -p /api/log && touch /api/log/development.log
 RUN gem install bundler
 RUN bundle install
 COPY . /api
-RUN rails db:migrate
 RUN gem install foreman

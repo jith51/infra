@@ -12,7 +12,7 @@ services:
     volumes:
       - infra-postgres:/var/lib/postgresql/data
     env_file:
-      - .env
+      - .env${ENV_FILE}
 
   redis:
     image: redis:7.2
@@ -35,7 +35,7 @@ services:
     ports:
       - "4000:4000" # use port that you want to in your local instead of 3091
     env_file:
-      - .env
+      - .env${ENV_FILE}
 
   sidekiq:
     build:
@@ -45,10 +45,12 @@ services:
       - postgres
       - redis
     env_file:
-      - .env      
+      - .env${ENV_FILE}
 
   front:
-    build: ./front
+    build:
+      context: ./front
+      target: ${TARGET}
     ports:
       - "3000:3000" # use port that you want to in your local instead of 8091
     volumes:

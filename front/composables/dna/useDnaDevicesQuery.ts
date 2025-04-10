@@ -22,7 +22,7 @@ export const useDnaDevicesQuery = () => {
   const loadMore = () => {
       fetchMore({
           variables: {
-              _page: (devices.value.length) + 20,
+              _page: (devices.value.length) + 40,
           },
           updateQuery(previousData, { fetchMoreResult}) {
               return {devices: [ ...previousData.devices||[], ...fetchMoreResult.devices ]}
@@ -35,7 +35,7 @@ export const useDnaDevicesQuery = () => {
   })
 
   const noMoreData = computed(() => {
-      return !(loading || (result.value?.devices % (queryVariables.value._limit||0) != 0))
+    return (loading.value || (devices.value.length % queryVariables.value._limit != 0))
   })
 
   function onFilterChange(filter: DeviceFilter) {

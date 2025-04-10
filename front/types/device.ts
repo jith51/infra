@@ -61,9 +61,10 @@ export const deviceSchema = s.object({
     switches: s.array(switchSchema),
     eolBulletins: s.array(eolBulletinSchema)
   })
+
 const deviceFilterSchema = s.object({
-  _limit: s.optional(s.number()),
-  _page: s.optional(s.number()),
+  _limit: s.number(),
+  _page: s.number(),
   hostname: s.optional(s.string()),
   deviceFamilyIds: s.array(s.number()),
   devicePlatformIdIds: s.array(s.number()),

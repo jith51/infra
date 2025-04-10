@@ -25,4 +25,4 @@ COPY --from=build /front/package.json ./package.json
 ENV NODE_ENV=production
 
 EXPOSE 3000
-CMD [ "node", ".output/server/index.mjs" ]
+CMD [ "node", ".output/server/index.mjs", "--host", "0.0.0.0" ]

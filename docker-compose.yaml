@@ -1,67 +1,67 @@
-version: "0.1"
-
 services:
-
   postgres:
     image: postgres:16.3
+    container_name: postgres
     environment:
       POSTGRES_USER: ${DATABASE_USER}
       POSTGRES_PASSWORD: ${DATABASE_PASSWORD}
-    ports: 
-      - '5432:5432'
+    ports:
+      - "5432:5432"
     volumes:
       - infra-postgres:/var/lib/postgresql/data
     env_file:
-      - .env${ENV_FILE}
+      - .env
 
   redis:
     image: redis:7.2
+    container_name: redis
     ports:
-      - '6379:6379'
+      - "6379:6379"
     volumes:
-      - infra-redis:/var/lib/redis/data      
+      - infra-redis:/var/lib/redis/data
 
   api:
-    build: ./api
+    build:
+      context: ./api
+      target: prod
+    container_name: api
     command: bash -c "rm -f /api/tmp/pids/server.pid && foreman start -f /api/Procfile"
     environment:
-      - PORT=4000
+      PORT: 4000
+      RAILS_ENV: production
     volumes:
       - ./api:/api
-      - rails_log:/api/log
+      - ./api/log:/api/log
     links:
       - postgres
-      - redis      
+      - redis
     ports:
       - "4000:4000" # use port that you want to in your local instead of 3091
     env_file:
-      - .env${ENV_FILE}
+      - .env
 
   sidekiq:
     build:
       context: ./api
-    command: bundle exec sidekiq 
+      target: prod
+    container_name: sidekiq
+    command: bundle exec sidekiq
     links:
       - postgres
       - redis
     env_file:
-      - .env${ENV_FILE}
+      - .env
 
   front:
     build:
       context: ./front
-      target: ${TARGET}
+      target: prod
+    container_name: front
     ports:
       - "3000:3000" # use port that you want to in your local instead of 8091
-    volumes:
-      - ./front:/front
-      - front_node_modules:/front/node_modules
     links:
       - api
 
 volumes:
-  rails_log:
-  front_node_modules:
-  app_dotnuxt:
   infra-postgres:
   infra-redis:

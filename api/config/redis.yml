@@ -13,3 +13,4 @@ test:
 
 production:
   <<: *default
+  db: 1

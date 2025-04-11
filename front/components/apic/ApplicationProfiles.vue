@@ -1,6 +1,6 @@
 <template>
-  <div class=" w-full h-full flex flex-col overflow-auto">
-    <div class="py-3 pr-1 ms-1">
+  <div class=" w-full h-full flex flex-col gap-2">
+    <div class="py-1 ms-1">
       <Input
           placeholder="Filter app..."
           v-model.lazy="applicationProfilesSelector"
@@ -44,12 +44,7 @@
                       {{ epg["name"] }}
                     </div>
                     <div class="pl-4">
-                      <div> SERVEURS :</div>
-                      <div class="pl-4">
-                        <li v-for="(serveur, s) in epg['serveurs']" :key="s" :class="[serveur['powerstate'] == '0' ? 'text-red-300' : '']">
-                          {{ serveur["name"] }}
-                        </li>
-                      </div>
+                      <ApicServeurs :serveurs="epg['serveurs']"/>
                       <div> DOMAINE :</div>
                       <div class="pl-4 'text-orange-300'">{{ epg["domaine"]["name"] }}</div>
                     </div>
@@ -59,7 +54,7 @@
                     class="align-top"
                   >
                     <template v-for="(contrat, k) in getUsedContrats(epg, usedContratType)" :key="k">
-                      <div class="flex flex-col sticky top-10 py-1 bg-white z-5">
+                      <div class="flex flex-col py-1 bg-white z-5">
                         <div 
                           class="sticky top-10 py-1 bg-white z-5"
                           :class="contrat['name'] != 'LEGACY' ? (contrat['name'] != '_AP:Any' ? 'text-orange-300' : 'text-green-300') : 'text-red-100'"
@@ -86,12 +81,7 @@
                                 <li v-if="contractableType == 'Epg'" class="pl-4">
                                   {{ contractable["applicationProfile"]["tenant"]["name"] }} | {{ contractable["applicationProfile"]["name"] }} | {{ contractable["name"] }}
                                   <div class="pl-4">
-                                    <div v-for="(serveur, s) in contractable['serveurs']" :key="s">
-                                      <div v-if="s==0">SERVEURS :</div>
-                                      <li class="pl-4" :class="[serveur['powerstate'] == '0' ? 'text-red-300' : '']">
-                                        {{ serveur["name"] }}
-                                      </li>
-                                    </div>
+                                    <ApicServeurs :serveurs="contractable['serveurs']"/>
                                   </div>
                                 </li>
                                 <li v-else class="pl-4">{{ contractable["name"] }}</li>

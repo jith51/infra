@@ -242,7 +242,7 @@ const { userLogOut } = useUserAuth()
           </Breadcrumb>
         </div>
       </header>
-      <div class="flex flex-1 flex-col gap-4 m-4 pt-0 overflow-hidden">
+      <div class="flex flex-1 gap-4 m-4 pt-0 overflow-hidden">
         <slot />
       </div>
     </SidebarInset>

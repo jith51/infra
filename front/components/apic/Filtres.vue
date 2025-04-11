@@ -1,6 +1,6 @@
 <template>
-  <div class=" w-full h-full flex flex-col overflow-auto">
-    <div class="py-3 pr-1 ms-1 pb-3">
+  <div class=" w-full h-full flex flex-col gap-2">
+    <div class="py-1 ms-1">
       <Input
           placeholder="Filter contrat..."
           v-model.lazy="applicationProfilesSelector"
@@ -58,21 +58,7 @@
                             </div>
                           </TableCell>
                           <TableCell class="align-top">
-                            <div 
-                              v-if="(filterType == 'In' && usedContratType=='Apic::ProvidedContrat') || (filterType == 'Out' &&  usedContratType=='Apic::ConsumedContrat')"
-                              class="sticky top-10 pt-1"
-                            >
-                              {{"<-----------"}}
-                            </div>
-                            <div 
-                              v-else-if="(filterType == 'Out' && usedContratType=='Apic::ProvidedContrat') || (filterType == 'In' &&  usedContratType=='Apic::ConsumedContrat')"
-                              class="sticky top-10 pt-1"
-                            >
-                              {{"----------->"}}
-                            </div>
-                            <div v-else class="sticky top-10 pt-1">
-                              {{"<---------->"}}
-                            </div>
+                            <ApicDecoredFiltre :filterType="filterType" :usedContratType="usedContratType"/>
                           </TableCell>
                           <TableCell class="align-top">
                             <li 
@@ -85,9 +71,9 @@
                             </li>
                           </TableCell>
                           <TableCell class="align-top">
-                            <li v-for="(serveur, k) in getContractableServeurs(contrat['id'], oppositeContrat(usedContratType))" :key="k" :class="[serveur['powerstate'] == '0' ? 'text-red-300' : '']">
-                              {{ serveur }}
-                            </li>
+
+                            <ApicServeurs :serveurs="getContractableServeurs(contrat['id'], oppositeContrat(usedContratType))"/>
+                            
                           </TableCell>
                         </TableRow>
                       </template>
@@ -147,9 +133,9 @@
 
   const getContractableServeurs = (contratId, usedContratType) => {
     return (props.contrats.find(c => c.id == contratId)["usedContrats"] ?? []).filter(c => c["type"] == usedContratType && c["contractable"]["__typename"] == 'Epg')
-      .map(c => c["contractable"]["serveurs"].map(s => s["name"])).flat()
+      .map(c => c["contractable"]["serveurs"]).flat()
       .concat((props.contrats.find(c => c.id == contratId)["usedContrats"] ?? []).filter(c => c["type"] == usedContratType && c["contractable"]["__typename"] == 'L3Out')
-        .map(uc => uc["contractable"]["name"]))
+        .map(uc => { return {'name': uc["contractable"]["name"], 'powerstate': '0'} }))
   }
 
   const getUsedContratTypes = (epg) => {

@@ -73,51 +73,53 @@
 </script>
 
 <template>
-  <DataTableToolbar
-    :table="table"
-    :filter="queryVariables"
-    @filter-changed="onFilterChange"
-  />
-  <div ref="el" class=" relative rounded-md max-h-full border w-full overflow-auto">
-    <table class="w-full caption-bottom text-sm">
-      <TableHeader class="sticky top-0 bg-white z-10 [&_th]:after:border-b">
-        <TableRow v-for="headerGroup in table.getHeaderGroups()" :key="headerGroup.id">
-          <TableHead v-for="header in headerGroup.headers" :key="header.id" >
-            <FlexRender v-if="!header.isPlaceholder" :render="header.column.columnDef.header" :props="header.getContext()"/>
-          </TableHead>
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        <template 
-          v-if="table.getRowModel().rows?.length"
-          v-for="row in table.getRowModel().rows"
-          :key="row.id"
-        >
-          <TableRow>
-            <TableCell v-for="cell in row.getVisibleCells()" :key="cell.id">
-              <FlexRender :render="cell.column.columnDef.cell" :props="cell.getContext()" />
-            </TableCell>
+  <div class=" w-full h-full flex flex-col gap-4">
+    <DataTableToolbar
+      :table="table"
+      :filter="queryVariables"
+      @filter-changed="onFilterChange"
+    />
+    <div ref="el" class=" relative rounded-md max-h-full border w-full overflow-auto">
+      <table class="w-full caption-bottom text-sm">
+        <TableHeader class="sticky top-0 bg-white z-10 [&_th]:after:border-b">
+          <TableRow v-for="headerGroup in table.getHeaderGroups()" :key="headerGroup.id">
+            <TableHead v-for="header in headerGroup.headers" :key="header.id" >
+              <FlexRender v-if="!header.isPlaceholder" :render="header.column.columnDef.header" :props="header.getContext()"/>
+            </TableHead>
           </TableRow>
-          <TableRow v-if="row.getIsExpanded()">
-            <TableCell :colspan="columns.length" class="pl-20">
-              <ExpandedCell 
-                :switches="row['original']['switches']"
-                :equipements="row['original']['equipements']"
-                :eolBulletins="row['original']['eolBulletins']"
-              />
-            </TableCell>
-          </TableRow>
-        </template>
-        <TableRow v-else>
-          <TableCell
-            :colspan="columns.length"
-            class="h-24 text-center"
+        </TableHeader>
+        <TableBody>
+          <template 
+            v-if="table.getRowModel().rows?.length"
+            v-for="row in table.getRowModel().rows"
+            :key="row.id"
           >
-            No results.
-          </TableCell>
-        </TableRow>
-      </TableBody>
-    </table>
+            <TableRow>
+              <TableCell v-for="cell in row.getVisibleCells()" :key="cell.id">
+                <FlexRender :render="cell.column.columnDef.cell" :props="cell.getContext()" />
+              </TableCell>
+            </TableRow>
+            <TableRow v-if="row.getIsExpanded()">
+              <TableCell :colspan="columns.length" class="pl-20">
+                <ExpandedCell 
+                  :switches="row['original']['switches']"
+                  :equipements="row['original']['equipements']"
+                  :eolBulletins="row['original']['eolBulletins']"
+                />
+              </TableCell>
+            </TableRow>
+          </template>
+          <TableRow v-else>
+            <TableCell
+              :colspan="columns.length"
+              class="h-24 text-center"
+            >
+              No results.
+            </TableCell>
+          </TableRow>
+        </TableBody>
+      </table>
+    </div>
   </div>
 </template>
 

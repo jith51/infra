@@ -9,6 +9,11 @@ export default defineNuxtConfig({
   future: {
     compatibilityVersion: 4,
   },
+  runtimeConfig: {
+    public: {
+      baseURL: "fake"
+    }
+  },
   imports: {
     dirs: [
       // ... or scan all modules within given directory

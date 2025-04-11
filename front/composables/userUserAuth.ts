@@ -16,7 +16,6 @@ export const useUserAuth = () => {
   const saveLogOutState = () => {
     authStore.value.user = ""
     authStore.value.token = ""
-
   }
 
   // USER CHECK AUTHENTIFICATION

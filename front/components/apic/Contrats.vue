@@ -1,6 +1,6 @@
 <template>
-    <div class=" w-full h-full flex flex-col overflow-auto">
-      <div class="py-3 pr-1 ms-1">
+    <div class=" w-full h-full flex flex-col gap-2">
+      <div class="py-1 ms-1">
       <Input
           placeholder="Filter contrat..."
           v-model.lazy="contratsSelector"
@@ -52,9 +52,7 @@
                   <div class="sticky top-10 pt-1 bg-white">
                     {{ contractable["applicationProfile"]["tenant"]["name"] }} |{{ contractable["applicationProfile"]["name"] }} | {{ contractable["name"] }}
                   </div>
-                  <li class="pl-4" v-for="(serveur, s) in contractable['serveurs']" :key="s" :class="[serveur['powerstate'] == '0' ? 'text-red-300' : '']">
-                    {{ serveur["name"] }}
-                  </li>
+                  <ApicServeurs :serveurs="contractable['serveurs']"/>
                 </div>
                 <div v-else class="text-blue-500 sticky top-10 pt-1 pb-2">
                   {{ contractable["name"] }}

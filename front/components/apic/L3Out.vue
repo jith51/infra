@@ -1,7 +1,7 @@
 
 <template>
-  <div class=" w-full h-full flex flex-col overflow-auto">
-    <div class="py-3 pr-1 ms-1">
+  <div class=" w-full h-full flex flex-col gap-2">
+    <div class="py-1 ms-1">
       <Input
           placeholder="Filter filtre..."
           v-model.lazy="filtreSelector"
@@ -22,7 +22,7 @@
               <div>Contrat</div>
             </TableHead> 
             <TableHead>
-              <div>Application profile</div>
+              <div>Application profile / Epg</div>
             </TableHead>
           </TableRow>
         </TableHeader>
@@ -33,21 +33,7 @@
                 <template v-if="hasUsedFilers(contrat, filterType, filtreSelector)">
                   <TableRow class="hover:bg-white">
                     <TableCell class="w-96 align-top" >
-                      <div 
-                        v-if="(filterType == 'In' && usedContratType == 'Apic::ProvidedContrat') || (filterType == 'Out' &&  usedContratType == 'Apic::ConsumedContrat')"
-                        class="sticky top-10 pt-1"
-                      >
-                        {{"<-----------"}}
-                      </div>
-                      <div 
-                        v-else-if="(filterType == 'Out' && usedContratType == 'Apic::ProvidedContrat') || (filterType == 'In' &&  usedContratType == 'Apic::ConsumedContrat')"
-                        class="sticky top-10 pt-1"
-                      >
-                        {{"----------->"}}
-                      </div>
-                      <div v-else class="sticky top-10 pt-1">
-                        {{"<---------->"}}
-                      </div>
+                      <ApicDecoredFiltre :filterType="filterType" :usedContratType="usedContratType"/>
                     </TableCell>
                     <TableCell class="align-top" >
                       <div class="sticky top-10 pt-1 bg-white">
@@ -67,9 +53,7 @@
                           {{ epg["applicationProfile"]["tenant"]["name"] }} | {{ epg["applicationProfile"]["name"] }} | {{ epg["name"] }} 
                         </div>
                         <div class="pl-4">
-                          <li class="pl-4" v-for="(serveur, s) in epg['serveurs']" :key="s" :class="[serveur['powerstate'] == '0' ? 'text-red-300' : '']">
-                            {{ serveur["name"] }}
-                          </li>
+                          <ApicServeurs :serveurs="epg['serveurs']"/>
                         </div>
                       </div>
                     </TableCell>

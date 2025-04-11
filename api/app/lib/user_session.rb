@@ -7,7 +7,7 @@ module UserSession
         token = jwt_encode(user_id: user_id)
         # Enregistrement de la session dans Redis avec les info du user
         $redis.hset(token, 'user_id', user_id)
-        $redis.expire(token, 40.minutes.to_i)
+        $redis.expire(token, 20.minutes.to_i)
 
         return token
     end

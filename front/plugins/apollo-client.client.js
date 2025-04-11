@@ -10,8 +10,17 @@ import ActionCableLink from 'graphql-ruby-client/subscriptions/ActionCableLink'
 import ActionCable from 'actioncable'
 
 export default defineNuxtPlugin(nuxtApp => {
-  
-  const cable = ActionCable.createConsumer('ws://localhost:4000/cable');
+  // const config = useRuntimeConfig();
+  // const baseUrl = config.public.baseURL
+
+  // const cableUrl = "ws://" + baseUrl + "/cable"
+  // const apiUrl = (baseUrl =="localhost" ? "http://" : "https://") + baseUrl + "/graphql"
+  // const authUrl = (baseUrl =="localhost" ? "http://" : "https://") + baseUrl + "/auth"
+  const cableUrl = "/cable"
+  const apiUrl = "/graphql"
+  const authUrl ="/auth"
+
+  const cable = ActionCable.createConsumer(cableUrl);
   const actionCableLink = new ActionCableLink({ cable });
 
   const authStore = useAuthStore()
@@ -63,13 +72,13 @@ export default defineNuxtPlugin(nuxtApp => {
         split(
           (operation) => operation.getContext().RequestForAuth,
       // Terminal Link pour authentification
-          new HttpLink({ uri: 'http://localhost:4000/auth' }),
+          new HttpLink({ uri: authUrl }),
           split(
             (operation) => operation.getContext().hasUpload,
       // Terminal Link pour mutation avec File
-            createUploadLink({ credentials: 'same-origin', uri: 'http://localhost:4000/graphql' }),
+            createUploadLink({ credentials: 'same-origin', uri: apiUrl }),
       // Terminal Link les autres cas
-            new HttpLink({ uri: 'http://localhost:4000/graphql' }),
+            new HttpLink({ uri: apiUrl }),
           )
         ),
       ])

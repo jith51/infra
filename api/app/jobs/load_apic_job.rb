@@ -1,5 +1,6 @@
 require 'find'
 require 'rubygems/package'
+require "zlib"
 
 class LoadApicJob < ApplicationJob
   queue_as :default
@@ -39,7 +40,7 @@ class LoadApicJob < ApplicationJob
       if f.include?("ce2_InfraExplorer")
         tar_file = f
         File.open(f) do |file|
-          Gem::Package::TarReader.new(file) do |tar|
+          Gem::Package::TarReader.new(Zlib::GzipReader.open(file)) do |tar|
             tar.each do |entry|
               if entry.full_name.start_with?("ce2_InfraExplorer") && entry.full_name.end_with?(".json")
                 apicSchema = JSON.parse(entry.read)

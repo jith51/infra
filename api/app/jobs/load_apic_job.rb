@@ -1,3 +1,6 @@
+require 'find'
+require 'rubygems/package'
+
 class LoadApicJob < ApplicationJob
   queue_as :default
 
@@ -23,13 +26,32 @@ class LoadApicJob < ApplicationJob
     
 
     # Creation d'un lambda qui va rechercher par le nom et tenant l'id d'un objs dans un tableau d'objet --> retourne un tbleau d'un élément
-    search_id = -> (arr, name, tenant_id = nil) { 
-      arr.filter_map { |c| c.id if c.name == name && (tenant_id.nil? ? true : c.tenant_id == tenant_id) }
-    }
+    # search_id = -> (arr, name, tenant_id = nil) { 
+    #   arr.filter_map { |c| c.id if c.name == name && (tenant_id.nil? ? true : c.tenant_id == tenant_id) }
+    # }
 
     # RECUPERATION DU FICHIER DANS UN HASH
     # apicSchema = JSON.parse File.read('./ce2_defaultAuto-2022-12-19T06-00-05_1.json')
-    apicSchema = JSON.parse File.read('./echange/apic.json')
+    tar_file = nil
+    apicSchema = nil
+
+    Find.find("#{Rails.root}/echange") do |f|
+      if f.include?("ce2_InfraExplorer")
+        tar_file = f
+        File.open(f) do |file|
+          Gem::Package::TarReader.new(file) do |tar|
+            tar.each do |entry|
+              if entry.full_name.start_with?("ce2_InfraExplorer") && entry.full_name.end_with?(".json")
+                apicSchema = JSON.parse(entry.read)
+              end
+            end
+          end
+        end
+      end
+    end
+    
+    return 1 if !apicSchema
+    # apicSchema = JSON.parse File.read('./echange/apic.json')
 
     # RECHERCHE DES TENANTS
     tenants = apicSchema["polUni"]["children"].filter_map {|child| child["fvTenant"] if child["fvTenant"] }
@@ -367,5 +389,9 @@ class LoadApicJob < ApplicationJob
 
     Apic::Task.insert_all new_tasks unless new_tasks.blank?
 
+    # On supprime le fichier tar
+    File.delete(tar_file)
+
+    return 0
   end
 end

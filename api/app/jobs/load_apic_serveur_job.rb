@@ -5,7 +5,8 @@ class LoadApicServeurJob < ApplicationJob
     Apic::Serveur.delete_all
 
     # RECUPERATION DU FICHIER DANS UN HASH
-    apicVMWARE= JSON.parse File.read('./echange/vmreseaux.json')
+    file_name = "#{Rails.root}/echange/vmreseaux.json"
+    apicVMWARE = JSON.parse File.read(file_name)
 
     aps = Apic::ApplicationProfile.all
     epgs = Apic::Epg.all
@@ -28,8 +29,10 @@ class LoadApicServeurJob < ApplicationJob
     
     Apic::Serveur.insert_all new_serveurs
 
-    # puts new_serveurs
-    puts erreurs
+    # Suppression du fichier
+    File.delete(file_name)
+
+    return 0
   end
 end
 

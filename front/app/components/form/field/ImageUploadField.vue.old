@@ -1,0 +1,111 @@
+<template>
+  <form.Field :name="name">
+    <template #default="{ field }">
+		<Field :data-invalid="isInvalid(field)">
+			<FieldLabel :for="field.name">Nom</FieldLabel>
+			<Input
+				:id="field.name"
+				ref="inputRef"
+				:name="field.name"
+				:model-value="field.state.value"
+				type="file"
+				accept="image/*"
+				hidden
+				@change="(e) => onFileChange(e, field)"
+				@blur="field.handleBlur"
+				@input="field.handleChange($event.target.value)"
+				:aria-invalid="isInvalid(field)"
+				autocomplete="off"
+			/>
+          <label
+				v-if="!imageName"
+				:for="inputId"
+				class="flex h-10 cursor-pointer items-center rounded-md border px-3 text-sm text-muted-foreground"
+			>
+				Choisir une image...
+			</label>
+
+			<div
+				v-else
+				class="flex items-center justify-between rounded-md border px-3 py-2"
+			>
+				<label :for="inputId" class="cursor-pointer truncate">
+					{{ imageName }}
+				</label>
+
+				<Button variant="ghost" size="icon" @click.prevent="remove(field)">
+				<Delete class="h-4 w-4" />
+				</Button>
+			</div>
+
+			<NuxtImg
+				v-if="imagePreview"
+				:src="imagePreview"
+				class="mt-3 h-28 rounded-md object-cover"
+			/>
+
+			<FieldError v-if="isInvalid(field)" :errors="field.state.meta.errors" />
+		</Field>
+    </template>
+  </form.Field>
+</template>
+
+<script setup lang="ts">
+import type { AnyFieldApi } from '@tanstack/vue-form'
+import { Delete } from '@lucide/vue'
+
+const props = defineProps<{
+  form: any
+  name: string
+  label: string
+  image?: string
+}>()
+
+const inputId = `upload-${props.name}`
+
+const inputRef = ref<HTMLInputElement>()
+
+const imagePreview = ref(props.image ?? '')
+const imageName = ref(props.image?.split('/').pop() ?? '')
+
+function onFileChange(
+  event: Event,
+  field: AnyFieldApi
+) {
+  const target = event.target as HTMLInputElement
+
+  const file = target.files?.[0]
+
+  if (!file) {
+    field.handleChange(undefined)
+    return
+  }
+
+  field.handleChange(file)
+
+  imageName.value = file.name
+
+  const reader = new FileReader()
+
+  reader.onload = () => {
+    imagePreview.value = reader.result as string
+  }
+
+  reader.readAsDataURL(file)
+}
+
+function remove(field: AnyFieldApi) {
+  field.handleChange(undefined)
+
+  imagePreview.value = ''
+  imageName.value = ''
+
+  if (inputRef.value) {
+    inputRef.value.value = ''
+  }
+}
+
+function isInvalid(field) {
+        return field.state.meta.isTouched && !field.state.meta.isValid
+    }
+</script>

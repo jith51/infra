@@ -1,11 +1,16 @@
+# frozen_string_literal: true
+
+# Schema
 class ApiSchema < GraphQL::Schema
   # use GraphQL::Execution::Errors
   # use GraphQL::Subscriptions::ActionCableSubscriptions
-  
   # mutation(::ApicGql::Types::MutationType)
 
+  # mutation(::PhysicalGql::Types::MutationType)
+
+  mutation(ApiMutations)
   query(ApiQueries)
-  
+
   def self.type_error(err, context)
     raise GraphQL::ExecutionError, err
   end
@@ -17,7 +22,8 @@ class ApiSchema < GraphQL::Schema
   end
   rescue_from(ActiveRecord::RecordInvalid) do |err, obj, args, ctx, field|
     raise GraphQL::ExecutionError, err
-
   end
-
+  rescue_from(ActiveRecord::ActiveRecordError) do |err, obj, args, ctx, field|
+    raise GraphQL::ExecutionError, err
+  end
 end

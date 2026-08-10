@@ -1,0 +1,5 @@
+interface DumpPayloadOptions {
+    dumpPayload: string | true;
+}
+export default function dumpPayload(payload: Object, options: DumpPayloadOptions): void;
+export {};

@@ -1,29 +1,58 @@
-# BUILD
-FROM node:22.2.0-slim AS base
+FROM node:22-slim AS base
+
+RUN corepack enable
+
 RUN mkdir /front
 WORKDIR /front
+
 COPY ./package.json ./
-COPY ./yarn.lock ./
-RUN yarn install
-COPY . ./
+COPY ./pnpm-lock.yaml ./
 
+ENV CI=true
+ENV PNPM_CONFIRM_MODULES_PURGE=false
+
+RUN corepack enable 
+# && corepack prepare pnpm@latest --activate
+
+# INSTALL DEPS
+FROM base AS deps
+# COPY package.json pnpm-lock.yaml ./
+# RUN pnpm install --frozen-lockfile
+# Install production dependencies
+RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm install --prod --frozen-lockfile --dangerously-allow-all-builds
+
+# DEV
 FROM base AS dev
-WORKDIR /front
 ENV NODE_ENV=development
-CMD ["yarn", "nuxi", "dev"]
+# Install build dependencies
+RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm install --frozen-lockfile --dangerously-allow-all-builds
+COPY . ./
+# Build the TypeScript
+# CMD ["pnpm", "dev"]
+CMD ["pnpm", "nuxi", "dev"]
+# CMD ["pnpm", "dev"]
 
+
+# BUILD
 FROM base AS build
-RUN yarn nuxi build
+# Install build dependencies
+RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm install --frozen-lockfile
+# Build the TypeScript
+RUN pnpm run build
+# Create an image base
 
-FROM node:22.2.0-slim AS prod
+
+# PROD
+FROM node:22-slim AS prod
 WORKDIR /front
+
+ENV NODE_ENV=production
+ENV HOST=0.0.0.0
 
 COPY --from=build /front/.output ./.output
 COPY --from=build /front/node_modules ./node_modules
 COPY --from=build /front/package.json ./package.json
 
-ENV NODE_ENV=production
-ENV HOST=0.0.0.0
-
 EXPOSE 3000
-CMD [ "node", ".output/server/index.mjs" ]
+
+CMD ["node", ".output/server/index.mjs"]

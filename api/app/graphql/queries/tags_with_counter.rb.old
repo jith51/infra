@@ -1,0 +1,13 @@
+module Queries
+    class TagsWithCounter < Queries::BaseQuery
+        graphql_name 'tags_with_counter'
+
+        argument :thing_to_count, String, required: true
+
+        type [::Types::TagWithCounterType], null: false
+
+        def resolve(thing_to_count:)
+            Tag.with_counter_for(thing_to_count)
+        end
+    end
+end

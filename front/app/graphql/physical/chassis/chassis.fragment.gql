@@ -1,0 +1,32 @@
+#import './../chassis_class/chassisClass.fragment.gql'
+
+fragment ChassisFragment on ChassisType {
+  id
+  name
+  serialNumber
+  chassisClassId
+  customAttributes
+  chassisClass {
+    ...ChassisClassFragment  
+  }
+  ports {
+    id
+    name
+    # macAddress
+    # interfaceTypeId
+    # connection {
+    #   id
+    #   distantId
+    #   linkTypeId
+    # }
+  }
+  components {
+    id
+    name
+    componentTypeId
+    # description
+    # serialNumber
+  }
+  tagIds
+  tags
+}

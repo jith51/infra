@@ -1,0 +1,80 @@
+import * as v from 'valibot'
+import { chassisClassSchema } from './chassis_class'
+// import {  } from '../base'
+
+const connectionFormSchema = v.object({
+    id: v.optional(v.string()),
+    distantId: v.nullish(v.string()),
+    linkTypeId: v.nullish(v.string()),
+    _destroy: v.nullish(v.boolean())
+})
+
+const componentFormSchema = v.object({
+
+    id: v.optional(v.union([
+        v.string(),
+        v.pipe(v.number(), v.integer())
+    ])),
+    name: v.pipe(v.string(), v.nonEmpty()),
+    serialNumber: v.nullish(v.string()),
+    description: v.nullish(v.string()),
+    componentTypeId: v.string(),
+    _destroy: v.nullish(v.boolean())
+})
+
+
+const portFormSchema = v.object({
+
+    id: v.optional(v.union([
+        v.string(),
+        v.pipe(v.number(), v.integer())
+    ])),
+    name: v.pipe(v.string(), v.nonEmpty()),
+    macAddress: v.nullish(v.string()),
+    interfaceTypeId: v.nullish(v.union([
+        v.pipe(v.string(), v.nonEmpty()),
+        v.pipe(v.number(), v.integer())
+    ])),
+    connection: v.nullish(connectionFormSchema),
+    _destroy: v.nullish(v.boolean())
+})
+
+
+export const chassisSchema = v.object({
+
+    id: v.optional(v.union([
+        v.string(),
+        v.pipe(v.number(), v.integer())
+    ])),
+    name: v.pipe(v.string(), v.nonEmpty()),
+    serialNumber: v.nullish(v.string()),
+    chassisClass: v.optional(chassisClassSchema),
+    ports: v.optional(v.array(portFormSchema)),
+    tagIds: v.optional(v.array(v.union([
+        v.string(),
+        v.pipe(v.number(), v.integer())
+    ])))
+})
+
+export const chassisFormSchema = v.object({
+    
+    id: v.optional(v.union([
+        v.string(),
+        v.pipe(v.number(), v.integer())
+    ])),
+    name: v.pipe(v.string(), v.nonEmpty()),
+    serialNumber: v.nullish(v.string()),
+    chassisClassId: v.union([
+        v.string(),
+        v.pipe(v.number(), v.integer())
+    ]),
+    ports: v.optional(v.array(portFormSchema)),
+    components: v.optional(v.array(componentFormSchema)),
+    tagIds: v.optional(v.array(v.union([
+        v.string(),
+        v.pipe(v.number(), v.integer())
+    ])))
+})
+
+export type PortType = v.InferInput<typeof portFormSchema>
+export type ChassisType = v.InferInput<typeof chassisSchema> | v.InferInput<typeof chassisSchema> 

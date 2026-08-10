@@ -1,0 +1,7 @@
+#import './chassisPowertype.fragment.gql'
+
+query ChassisPowertypes($withCounter: Boolean = false) {
+  chassisPowertypes(withChassisClassCounter: $withCounter) {
+    ...ChassisPowertypeFragment
+  }
+}

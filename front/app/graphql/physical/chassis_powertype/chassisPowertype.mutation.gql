@@ -1,0 +1,7 @@
+#import './chassisPowertypeCache.fragment.gql'
+
+mutation chassisPowertype($input: ChassisPowertypeInput!) {
+    chassisPowertype(input: $input) {
+        ...ChassisPowertypeCacheFragment
+    }
+}

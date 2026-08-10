@@ -1,0 +1,10 @@
+import fs from 'fs';
+export default function dumpPayload(payload, options) {
+    let payloadStr = JSON.stringify(payload, null, 2) + "\n";
+    if (options.dumpPayload == true) {
+        process.stdout.write(payloadStr);
+    }
+    else {
+        fs.writeFileSync(options.dumpPayload, payloadStr, 'utf8');
+    }
+}

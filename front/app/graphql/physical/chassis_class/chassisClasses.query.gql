@@ -1,0 +1,19 @@
+#import './chassisClass.fragment.gql'
+
+query chassisClasses(
+  $limit: Int
+  $page: Int
+  $name: String
+  $fournisseur: String
+  $chassisPowertypeIds: [String!]
+) {
+  chassisClasses(
+    limit: $limit
+    page: $page
+    name: $name
+    fournisseur: $fournisseur
+    chassisPowertypeIds: $chassisPowertypeIds
+  ) {
+      ...ChassisClassFragment  
+    }
+  }

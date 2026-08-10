@@ -1,0 +1,24 @@
+import { useSelector } from "./useSelector.js";
+
+//#region src/useAtom.ts
+/**
+* Returns the current atom ref together with a setter.
+*
+* Use this when a component needs to both read and update the same writable
+* atom.
+*
+* @example
+* ```ts
+* const [count, setCount] = useAtom(countAtom)
+*
+* setCount((prev) => prev + 1)
+* console.log(count.value)
+* ```
+*/
+function useAtom(atom, options) {
+	return [useSelector(atom, void 0, options), atom.set];
+}
+
+//#endregion
+export { useAtom };
+//# sourceMappingURL=useAtom.js.map

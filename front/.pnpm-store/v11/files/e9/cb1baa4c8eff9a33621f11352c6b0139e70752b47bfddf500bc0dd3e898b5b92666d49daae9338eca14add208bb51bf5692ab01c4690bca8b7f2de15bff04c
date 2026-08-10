@@ -1,0 +1,2 @@
+declare function defaultChannelId(): string;
+export default defaultChannelId;

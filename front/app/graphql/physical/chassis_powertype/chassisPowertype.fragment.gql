@@ -1,0 +1,7 @@
+fragment ChassisPowertypeFragment on ChassisPowertypeType {
+  id
+  name
+  parentId
+  customAttributes
+  chassisClassesNumber @include(if: $withCounter)
+}

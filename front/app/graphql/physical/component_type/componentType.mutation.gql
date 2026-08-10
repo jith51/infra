@@ -1,0 +1,9 @@
+#import './componentType.fragment.gql'
+
+mutation componentTypeMutation(
+  $input: ComponentTypeInput!
+) {
+  componentTypeMutation(input: $input) {
+    ...ComponentTypeFragment
+  }
+}

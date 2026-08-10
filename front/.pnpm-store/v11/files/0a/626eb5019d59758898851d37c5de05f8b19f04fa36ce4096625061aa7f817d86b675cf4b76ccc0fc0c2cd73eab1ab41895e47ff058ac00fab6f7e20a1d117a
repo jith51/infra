@@ -1,0 +1,41 @@
+"use strict";
+Object.defineProperty(exports, Symbol.toStringTag, { value: "Module" });
+const formCore = require("@tanstack/form-core");
+const vueStore = require("@tanstack/vue-store");
+const vue = require("vue");
+function useFormGroup(opts) {
+  const formGroupApi = (() => {
+    const api = new formCore.FormGroupApi({
+      ...opts
+    });
+    return api;
+  })();
+  const groupState = vueStore.useStore(formGroupApi.store, (state) => state);
+  let cleanup;
+  vue.onMounted(() => {
+    cleanup = formGroupApi.mount();
+  });
+  vue.onUnmounted(() => {
+    cleanup();
+  });
+  vue.watch(
+    () => opts,
+    () => {
+      formGroupApi.update({ ...opts });
+    }
+  );
+  return { api: formGroupApi, state: groupState };
+}
+const FormGroup = vue.defineComponent(
+  (formGroupOptions, context) => {
+    const groupApi = useFormGroup({ ...formGroupOptions, ...context.attrs });
+    return () => context.slots.default({
+      group: groupApi.api,
+      state: groupApi.state.value
+    });
+  },
+  { name: "FormGroup", inheritAttrs: false }
+);
+exports.FormGroup = FormGroup;
+exports.useFormGroup = useFormGroup;
+//# sourceMappingURL=useFormGroup.cjs.map

@@ -1,0 +1,67 @@
+import { createActionCableHandler } from "./createActionCableHandler.js";
+import { createPusherHandler } from "./createPusherHandler.js";
+import { createAblyHandler } from "./createAblyHandler.js";
+import { Observable } from "relay-runtime";
+function createLegacyRelaySubscriptionHandler(options) {
+    var handler;
+    if (options.cable) {
+        handler = createActionCableHandler(options);
+    }
+    else if (options.pusher) {
+        handler = createPusherHandler(options);
+    }
+    else if (options.ably) {
+        handler = createAblyHandler(options);
+    }
+    else {
+        throw new Error("Missing options for subscription handler");
+    }
+    return handler;
+}
+/**
+ * Transport-agnostic wrapper for Relay Modern subscription handlers.
+ * @example Add ActionCable subscriptions
+ *   var subscriptionHandler = createHandler({
+ *     cable: cable,
+ *     operations: OperationStoreClient,
+ *   })
+ *   var network = Network.create(fetchQuery, subscriptionHandler)
+ * @param {ActionCable.Consumer} options.cable - A consumer from `.createConsumer`
+ * @param {Pusher} options.pusher - A Pusher client
+ * @param {Ably.Realtime} options.ably - An Ably client
+ * @param {OperationStoreClient} options.operations - A generated `OperationStoreClient` for graphql-pro's OperationStore
+ * @return {Function} A handler for a Relay Modern network
+*/
+function createRelaySubscriptionHandler(options) {
+    const handler = createLegacyRelaySubscriptionHandler(options);
+    // Turn the handler into a relay-ready subscribe function
+    return (request, variables) => {
+        return Observable.from({
+            subscribe: (observer) => {
+                const client = handler({
+                    text: request.text,
+                    name: request.name,
+                    id: request.id,
+                }, variables, {}, {
+                    onError: (_error) => {
+                        observer.error;
+                    },
+                    onNext: (res) => {
+                        if (!res || !res.data) {
+                            return;
+                        }
+                        observer.next(res);
+                    },
+                    onCompleted: observer.complete,
+                });
+                return {
+                    unsubscribe: () => {
+                        client.dispose();
+                    },
+                };
+            },
+        });
+    };
+}
+export { createLegacyRelaySubscriptionHandler };
+export default createRelaySubscriptionHandler;

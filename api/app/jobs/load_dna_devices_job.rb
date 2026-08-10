@@ -120,6 +120,7 @@ class LoadDnaDevicesJob < ApplicationJob
       Dna::Equipement.delete_all
       Dna::Device.delete_all
       Dna::EolBulletin.delete_all
+      Dna::DevicePlatformId.delete_all
     end
 
     def get_devices(https, headers)
@@ -163,7 +164,11 @@ class LoadDnaDevicesJob < ApplicationJob
       device_families = devices_list.filter_map{|e| {name: e["family"]} if !e["family"].blank? }
       Dna::DeviceFamily.upsert_all(device_families, unique_by: :name)
 
-      device_platform_ids = devices_list.filter_map{|e| {name: e["platformId"]} if !e["platformId"].blank? }
+      device_platform_ids = devices_list.filter_map{|e| 
+        {
+          name: e["platformId"].gsub(" ","").split(",").uniq().join(",")
+        } if !e["platformId"].blank? 
+      }
       Dna::DevicePlatformId.upsert_all(device_platform_ids, unique_by: :name)
 
       device_roles = devices_list.filter_map{|e| {name: e["role"]} if !e["role"].blank? }
@@ -205,7 +210,7 @@ class LoadDnaDevicesJob < ApplicationJob
       devices.map! do |device|
 
         device_family_id = device_families.find {|i| i.name == device["family"]}&.id
-        device_platform_id_id = device_platform_ids.find {|i| i.name == device["platformId"]}&.id
+        device_platform_id_id =  device["platformId"] ? device_platform_ids.find {|i| i.name == device["platformId"].gsub(" ","").split(",").uniq().join(",")}&.id : nil
         device_role_id = device_roles.find {|i| i.name == device["role"]}&.id
         device_series_id = device_series.find {|i| i.name == device["series"]}&.id
         device_software_type_id = device_software_types.find {|i| i.name == device["softwareType"]}&.id

@@ -11,10 +11,10 @@ module Concern::ResolverLoader
       def load_query_resolvers_for(mod)
         eligible_mods = mod.constants(false)
           .map(&mod.method(:const_get))
-  
-        eligible_mods.each do |eligible_mod|
+
+          eligible_mods.each do |eligible_mod|
           if eligible_mod.respond_to?(:graphql_name)
-            field eligible_mod.graphql_name, resolver: eligible_mod
+            field eligible_mod.graphql_name.camelize(:lower), resolver: eligible_mod
           end
   
           if eligible_mod.constants(false).any?
@@ -24,12 +24,14 @@ module Concern::ResolverLoader
       end
   
       def load_mutation_resolvers_for(mod)
+
         eligible_mods = mod.constants(false)
           .map(&mod.method(:const_get))
-  
-        eligible_mods.each do |eligible_mod|
+
+          eligible_mods.each do |eligible_mod|
           if eligible_mod.respond_to?(:graphql_name)
-            field eligible_mod.mutation_field_name, mutation: eligible_mod
+            # field eligible_mod.mutation_field_name, mutation: eligible_mod
+            field eligible_mod.graphql_name.camelize(:lower), mutation: eligible_mod
           end
   
           if eligible_mod.constants(false).any?

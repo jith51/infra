@@ -1,0 +1,16 @@
+query chassisFilterTables {
+  tags(thingToCount: "chassis") {
+    id
+    name
+    ... on TagWithCounterType {
+      numberOfThings
+    }
+  }
+  chassisClasses(forFilter: true) {
+    id
+    name
+    ... on ChassisClassFilterTableType {
+        numberOfChassis
+    }
+  }
+}

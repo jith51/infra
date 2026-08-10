@@ -1,0 +1,23 @@
+import { UseSelectorOptions } from "./useSelector.cjs";
+import { Atom } from "@tanstack/store";
+import { Ref } from "vue-demi";
+
+//#region src/useAtom.d.ts
+/**
+ * Returns the current atom ref together with a setter.
+ *
+ * Use this when a component needs to both read and update the same writable
+ * atom.
+ *
+ * @example
+ * ```ts
+ * const [count, setCount] = useAtom(countAtom)
+ *
+ * setCount((prev) => prev + 1)
+ * console.log(count.value)
+ * ```
+ */
+declare function useAtom<TValue>(atom: Atom<TValue>, options?: UseSelectorOptions<TValue>): [Readonly<Ref<TValue>>, Atom<TValue>['set']];
+//#endregion
+export { useAtom };
+//# sourceMappingURL=useAtom.d.cts.map

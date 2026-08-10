@@ -1,0 +1,36 @@
+import { Ref } from "vue-demi";
+
+//#region src/useSelector.d.ts
+interface UseSelectorOptions<TSelected> {
+  compare?: (a: TSelected, b: TSelected) => boolean;
+}
+type SelectionSource<T> = {
+  get: () => T;
+  subscribe: (listener: (value: T) => void) => {
+    unsubscribe: () => void;
+  };
+};
+/**
+ * Selects a slice of state from an atom or store and subscribes the component
+ * to that selection.
+ *
+ * This is the primary Vue read hook for TanStack Store. It returns a readonly
+ * ref containing the selected value.
+ *
+ * Omit the selector to subscribe to the whole value.
+ *
+ * @example
+ * ```ts
+ * const count = useSelector(counterStore, (state) => state.count)
+ * console.log(count.value)
+ * ```
+ *
+ * @example
+ * ```ts
+ * const value = useSelector(countAtom)
+ * ```
+ */
+declare function useSelector<TSource, TSelected = NoInfer<TSource>>(source: SelectionSource<TSource>, selector?: (snapshot: TSource) => TSelected, options?: UseSelectorOptions<TSelected>): Readonly<Ref<TSelected>>;
+//#endregion
+export { UseSelectorOptions, useSelector };
+//# sourceMappingURL=useSelector.d.ts.map

@@ -1,0 +1,41 @@
+import { FormGroupApi } from "@tanstack/form-core";
+import { useStore } from "@tanstack/vue-store";
+import { defineComponent, onMounted, onUnmounted, watch } from "vue";
+function useFormGroup(opts) {
+  const formGroupApi = (() => {
+    const api = new FormGroupApi({
+      ...opts
+    });
+    return api;
+  })();
+  const groupState = useStore(formGroupApi.store, (state) => state);
+  let cleanup;
+  onMounted(() => {
+    cleanup = formGroupApi.mount();
+  });
+  onUnmounted(() => {
+    cleanup();
+  });
+  watch(
+    () => opts,
+    () => {
+      formGroupApi.update({ ...opts });
+    }
+  );
+  return { api: formGroupApi, state: groupState };
+}
+const FormGroup = defineComponent(
+  (formGroupOptions, context) => {
+    const groupApi = useFormGroup({ ...formGroupOptions, ...context.attrs });
+    return () => context.slots.default({
+      group: groupApi.api,
+      state: groupApi.state.value
+    });
+  },
+  { name: "FormGroup", inheritAttrs: false }
+);
+export {
+  FormGroup,
+  useFormGroup
+};
+//# sourceMappingURL=useFormGroup.js.map

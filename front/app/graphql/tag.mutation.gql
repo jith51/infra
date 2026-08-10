@@ -1,0 +1,14 @@
+mutation tag(
+  $className: String!
+  $id: ID
+  $name: String!
+) {
+  tag(input: {
+      className: $className
+      id: $id
+      name: $name
+    }) {
+      id
+      name
+  }
+}

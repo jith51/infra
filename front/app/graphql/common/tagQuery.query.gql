@@ -1,0 +1,9 @@
+query Tags($thingToCount: String) {
+  tags(thingToCount: $thingToCount) {
+    id
+    name
+    ... on TagWithCounterType {
+      numberOfThings
+    }
+  }
+}

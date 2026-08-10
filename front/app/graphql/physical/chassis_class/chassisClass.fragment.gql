@@ -1,0 +1,31 @@
+fragment ChassisClassFragment on ChassisClassType {
+  id
+  name
+  chassisPowertypeId
+  chassisPowertype {
+    name
+  }
+  fournisseur
+  model
+  partNumber
+  vendorEquipmentType
+  version
+  height
+  urlLink
+  frontImage
+  backImage
+  customAttributes
+  customAttributesDefinition
+  components {
+    id
+    name
+    componentTypeId
+    description
+  }
+  ports {
+    id
+    name
+    portTypeId
+    description
+  }
+}

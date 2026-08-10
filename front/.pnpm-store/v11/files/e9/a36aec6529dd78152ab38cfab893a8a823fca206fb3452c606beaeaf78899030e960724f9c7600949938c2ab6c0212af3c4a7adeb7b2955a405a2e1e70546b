@@ -1,0 +1,2043 @@
+import { ApolloClient, OperationVariables, DocumentNode, TypedDocumentNode, DataState, ObservableQuery, MaybeMasked, NetworkStatus, ErrorLike, UpdateQueryMapFn, ErrorPolicy, DefaultContext, MutationFetchPolicy, FetchPolicy } from '@apollo/client';
+import { StoreObject, Reference, MissingTree, ApolloCache } from '@apollo/client/cache';
+import { FragmentType } from '@apollo/client/masking';
+import { MaybeRefOrGetter, Ref, ComputedRef } from '@vue/reactivity';
+import { EventHookOn } from '@vueuse/core';
+
+/**
+ * Vue injection key for providing a single default ApolloClient.
+ *
+ * @group Injection Keys
+ *
+ * @example
+ * ```ts
+ * // In a plugin or main.ts
+ * app.provide(DefaultApolloClient, apolloClient)
+ *
+ * // In a parent component
+ * provide(DefaultApolloClient, apolloClient)
+ *
+ * // In a child component
+ * const client = inject(DefaultApolloClient)
+ * ```
+ */
+declare const DefaultApolloClient: unique symbol;
+/**
+ * Vue injection key for providing multiple named ApolloClient instances.
+ *
+ * @group Injection Keys
+ *
+ * @example
+ * ```ts
+ * // In a plugin or main.ts
+ * app.provide(ApolloClients, {
+ *   default: mainClient,
+ *   analytics: analyticsClient,
+ * })
+ *
+ * // In a parent component
+ * provide(ApolloClients, {
+ *   default: mainClient,
+ *   analytics: analyticsClient,
+ * })
+ *
+ * // In a child component
+ * const clients = inject(ApolloClients)
+ * ```
+ */
+declare const ApolloClients: unique symbol;
+declare namespace useApolloClient {
+    import _self = useApolloClient;
+    /** Identifier for a named Apollo client. Use `'default'` for the default client. */
+    type ClientId = string;
+    /** Dictionary mapping client IDs to ApolloClient instances. */
+    type ClientDict = Record<ClientId, ApolloClient>;
+    /**
+     * Function for resolving an Apollo client by ID.
+     *
+     * @param clientId - The client ID to resolve. If omitted, resolves the default client.
+     */
+    type ResolveClient<TReturn = ApolloClient> = (clientId?: ClientId) => TReturn;
+    /** An ApolloClient instance or undefined. */
+    type NullableApolloClient = ApolloClient | undefined;
+    namespace Base {
+        interface Result {
+            /**
+             * Resolves an ApolloClient by ID.
+             */
+            resolveClient: ResolveClient;
+            /** The ApolloClient instance. */
+            readonly client: ApolloClient;
+        }
+    }
+    /** Result returned by useApolloClient. */
+    interface Result extends Base.Result {
+    }
+    namespace DocumentationTypes {
+        /** @group Providers Namespaces */
+        namespace useApolloClient {
+            /** {@inheritDoc @vue/apollo-composable!useApolloClient.Result:interface} */
+            interface Result extends _self.Result {
+                /**
+                 * {@inheritDoc @vue/apollo-composable!useApolloClient.Base.Result#resolveClient:member}
+                 *
+                 * @param clientId - The client ID to resolve. If omitted, resolves the default client.
+                 */
+                resolveClient: (clientId?: ClientId) => ApolloClient;
+            }
+        }
+        /**
+         * {@inheritDoc @vue/apollo-composable!useApolloClient:function(1)}
+         */
+        function useApolloClient(clientId?: ClientId): useApolloClient.Result;
+    }
+}
+/**
+ * Composable to access ApolloClient instances.
+ *
+ * Must be provided using {@link DefaultApolloClient} or {@link ApolloClients}.
+ * Alternatively, can be used inside a {@link provideApolloClient} or {@link provideApolloClients} context.
+ *
+ * @param clientId - Client ID to resolve. Defaults to the default client.
+ * @returns Object with `client` property.
+ *
+ * @group Providers
+ *
+ * @example
+ * ```ts
+ * // Get the default client
+ * const { client } = useApolloClient()
+ *
+ * // Get a named client
+ * const { client } = useApolloClient('analytics')
+ * ```
+ */
+declare function useApolloClient(clientId?: useApolloClient.ClientId): useApolloClient.Result;
+declare namespace provideApolloClient {
+    type Callback<TFnResult> = () => TFnResult;
+    type Result<TFnResult = any> = (fn: Callback<TFnResult>) => TFnResult;
+    namespace DocumentationTypes {
+        /** @group Providers Namespaces */
+        namespace provideApolloClient {
+            /**
+             * Callback used in {@link provideApolloClient}.
+             */
+            type Callback = () => any;
+            /**
+             * Result type returned by {@link provideApolloClient}.
+             */
+            type Result = (fn: Callback) => any;
+        }
+        /** {@inheritDoc @vue/apollo-composable!provideApolloClient:function(1)} */
+        function provideApolloClient(client: ApolloClient): provideApolloClient.Result;
+    }
+}
+/**
+ * Provides an ApolloClient for use outside Vue's injection context.
+ *
+ * @param client - The ApolloClient instance to provide.
+ * @returns A function that executes a callback with the client available.
+ *
+ * @group Providers
+ *
+ * @example
+ * ```ts
+ * const { current } = provideApolloClient(client)(() => {
+ *   return useQuery(MyQuery)
+ * })
+ * ```
+ */
+declare function provideApolloClient(client: ApolloClient): provideApolloClient.Result;
+declare namespace provideApolloClients {
+    type Callback<TFnResult> = () => TFnResult;
+    type Result<TFnResult = any> = (fn: Callback<TFnResult>) => TFnResult;
+    namespace DocumentationTypes {
+        /** @group Providers Namespaces */
+        namespace provideApolloClients {
+            /**
+             * Callback used in {@link provideApolloClients}.
+             */
+            type Callback = () => any;
+            /**
+             * Result type returned by {@link provideApolloClients}.
+             */
+            type Result = (fn: Callback) => any;
+        }
+        /** {@inheritDoc @vue/apollo-composable!provideApolloClients:function(1)} */
+        function provideApolloClients(clients: useApolloClient.ClientDict): provideApolloClients.Result;
+    }
+}
+/**
+ * Provides multiple named ApolloClient instances for use outside Vue's injection context.
+ *
+ * @param clients - Dictionary mapping client IDs to ApolloClient instances.
+ * @returns A function that executes a callback with the clients available.
+ *
+ * @group Providers
+ *
+ * @example
+ * ```ts
+ * const { current } = provideApolloClients({
+ *   default: mainClient,
+ *   analytics: analyticsClient,
+ * })(() => {
+ *   return useQuery(MyQuery, { clientId: 'analytics' })
+ * })
+ * ```
+ */
+declare function provideApolloClients(clients: useApolloClient.ClientDict): provideApolloClients.Result;
+
+type RenameKey<T, OldKey extends keyof T, NewKey extends string> = {
+    [K in keyof T as K extends OldKey ? NewKey : K]: T[K];
+};
+
+declare namespace useFragment {
+    import _self = useFragment;
+    /**
+     * Type for the `variables` option parameter: either a ref/getter of the full variables object,
+     * or an object mapping individual variable names to refs/getters.
+     *
+     * @example
+     * ```ts
+     * // Single ref/getter for all variables
+     * const variables = reactive({ id: 1 })
+     * useFragment({ fragment, from, variables })
+     *
+     * // Object mapping individual variable names to refs/getters
+     * const id = ref(1)
+     * useFragment({ fragment, from, variables: { id } })
+     *
+     * // With props or any reactive values
+     * const { id } = defineProps<{ id: number }>()
+     * useFragment({ fragment, from, variables: () => ({ id }) })
+     * ```
+     */
+    type ReactiveVariablesParameter<TVariables extends OperationVariables> = MaybeRefOrGetter<TVariables> | {
+        [Key in keyof TVariables]: MaybeRefOrGetter<TVariables[Key]>;
+    };
+    /** Makes `variables` required only when TVariables has required properties. */
+    type ReactiveVariablesOption<TVariables extends OperationVariables> = {} extends TVariables ? {
+        variables?: ReactiveVariablesParameter<TVariables>;
+    } : {
+        variables: ReactiveVariablesParameter<TVariables>;
+    };
+    /** Cache identifier: object with `__typename`/`id`, `{ __ref }` reference, or string ID. */
+    type FromValue<TData> = StoreObject | Reference | FragmentType<TData> | string | null;
+    namespace Base {
+        /** Base options for useFragment. */
+        interface Options<TData = unknown, TVariables extends OperationVariables = OperationVariables> {
+            /**
+             * A GraphQL fragment document.
+             *
+             * @group 1. Fragment
+             */
+            fragment: MaybeRefOrGetter<DocumentNode | TypedDocumentNode<TData, TVariables>>;
+            /**
+             * Name of the fragment to use if document contains multiple fragments.
+             *
+             * @group 1. Fragment
+             */
+            fragmentName?: MaybeRefOrGetter<string>;
+            /**
+             * Cache identifiable entity to read the fragment from.
+             *
+             * @group 2. Data Source
+             */
+            from: MaybeRefOrGetter<FromValue<TData> | Array<FromValue<TData>>>;
+            /**
+             * Read from optimistic cache data.
+             *
+             * @defaultValue true
+             * @group 3. Configuration
+             */
+            optimistic?: boolean;
+            /**
+             * ID of a named Apollo client to use.
+             *
+             * @group 3. Configuration
+             */
+            clientId?: string;
+        }
+    }
+    /** Options for useFragment. */
+    type Options<TData = unknown, TVariables extends OperationVariables = OperationVariables> = Base.Options<TData, TVariables> & ReactiveVariablesOption<TVariables>;
+    namespace Base {
+        /** Result returned by useFragment. */
+        interface Result<TData = unknown> {
+            /**
+             * Current state as a discriminated union type.
+             *
+             * @group 1. Operation data
+             */
+            current: Readonly<Ref<_self.Current<TData>>>;
+            /**
+             * An object containing the result of your GraphQL fragment lookup after it completes.
+             *
+             * @group 1. Operation data
+             */
+            result: Readonly<Ref<_self.Current<TData>['result']>>;
+            /**
+             * Describes the completeness of `result`.
+             *
+             * - `partial`: Some data could be fulfilled from the cache but `result` is
+             *   incomplete. This is only possible when `returnPartialData` is `true`.
+             *
+             * - `complete`: `result` is a fully satisfied query result fulfilled
+             *   either from the cache or network.
+             *
+             * @group 1. Operation data
+             */
+            resultState: Readonly<Ref<_self.Current<TData>['resultState']>>;
+            /**
+             * Whether the fragment data is complete.
+             *
+             * @group 1. Operation data
+             */
+            complete: Readonly<Ref<boolean>>;
+            /**
+             * Tree of missing field errors when `complete` is false.
+             *
+             * @group 1. Operation data
+             */
+            missing: Readonly<Ref<MissingTree>>;
+            /**
+             * Event triggered when fragment data changes.
+             *
+             * @group 2. Events
+             */
+            onNextState: EventHookOn<_self.Current<TData>>;
+        }
+    }
+    type Current<TData> = RenameKey<RenameKey<ApolloClient.WatchFragmentResult<TData>, 'dataState', 'resultState'>, 'data', 'result'>;
+    /** {@inheritDoc @vue/apollo-composable!useFragment.Base.Result#result:member} */
+    interface Result<TData = unknown> extends Base.Result<TData> {
+    }
+    namespace DocumentationTypes {
+        /** @group Composables Namespaces */
+        namespace useFragment {
+            /** {@inheritDoc @vue/apollo-composable!useFragment.ReactiveVariablesParameter:type} */
+            type ReactiveVariablesParameter = MaybeRefOrGetter<OperationVariables> | Record<string, MaybeRefOrGetter<any>>;
+            /** {@inheritDoc @vue/apollo-composable!useFragment.FromValue:type} */
+            type FromValue = object | string | null;
+            /** Current state */
+            interface Current {
+                /** {@inheritDoc @vue/apollo-composable!useFragment.Base.Result#complete:member} */
+                complete: boolean;
+                /** {@inheritDoc @vue/apollo-composable!useFragment.Base.Result#result:member} */
+                result: object | Array<object>;
+                /** {@inheritDoc @vue/apollo-composable!useFragment.Base.Result#resultState:member} */
+                resultState: 'complete' | 'partial';
+                /** {@inheritDoc @vue/apollo-composable!useFragment.Base.Result#missing:member} */
+                missing?: MissingTree;
+            }
+            /** {@inheritDoc @vue/apollo-composable!useFragment.Options:type} */
+            interface Options extends Omit<_self.Base.Options<unknown>, 'from'> {
+                /** {@inheritDoc @vue/apollo-composable!useFragment.Base.Options#fragment:member} */
+                fragment: MaybeRefOrGetter<DocumentNode>;
+                /**
+                 * Variables for the fragment.
+                 * @group 1. Fragment
+                 */
+                variables?: MaybeRefOrGetter<ReactiveVariablesParameter>;
+                /** {@inheritDoc @vue/apollo-composable!useFragment.Base.Options#from:member} */
+                from: MaybeRefOrGetter<FromValue | Array<FromValue>>;
+            }
+            /** {@inheritDoc @vue/apollo-composable!useFragment.Base.Result:interface} */
+            interface Result extends Omit<_self.Base.Result, 'current' | 'onNextState'> {
+                /** {@inheritDoc @vue/apollo-composable!useFragment.Base.Result#complete:member} */
+                complete: Ref<boolean>;
+                /** {@inheritDoc @vue/apollo-composable!useFragment.Base.Result#current:member} */
+                current: Ref<Current>;
+                /** {@inheritDoc @vue/apollo-composable!useFragment.Base.Result#missing:member} */
+                missing: Ref<MissingTree>;
+                /** {@inheritDoc @vue/apollo-composable!useFragment.Base.Result#onNextState:member} */
+                onNextState: EventHookOn<Current>;
+                /** {@inheritDoc @vue/apollo-composable!useFragment.Base.Result#result:member} */
+                result: Ref<object | Array<object>>;
+                /** {@inheritDoc @vue/apollo-composable!useFragment.Base.Result#resultState:member} */
+                resultState: Ref<'complete' | 'partial'>;
+            }
+        }
+        /** {@inheritDoc @vue/apollo-composable!useFragment:function(1)} */
+        function useFragment(options: useFragment.Options): useFragment.Result;
+    }
+}
+/**
+ * A composable for reading fragment data from the Apollo cache with full reactivity.
+ *
+ * Watches fragment data and automatically updates when the cache changes.
+ * Supports both single entities and arrays of entities.
+ *
+ * ::: danger Note
+ *
+ * This only works for data that can be identified by the cache via `cache.identify()`.
+ * Entities must have a unique cache ID (typically `__typename` + `id`).
+ *
+ * :::
+ *
+ * @see {@link https://www.apollographql.com/docs/react/api/cache/InMemoryCache#watchfragment | Apollo Client watchFragment API}
+ * @see {@link https://www.apollographql.com/docs/react/caching/cache-interaction#obtaining-an-objects-cache-id | Obtaining an object's cache ID}
+ *
+ * @param options - Configuration options for the fragment.
+ * @returns Fragment result object with reactive refs.
+ *
+ * @group Composables
+ *
+ * @example
+ * ```ts
+ * const { current } = useFragment({
+ *   fragment: gql`fragment UserFields on User { id name }`,
+ *   from: { __typename: 'User', id: '1' },
+ * })
+ * ```
+ */
+declare function useFragment<TData = unknown, TVariables extends OperationVariables = OperationVariables>(options: MaybeRefOrGetter<useFragment.Options<TData, TVariables> & {
+    from: MaybeRefOrGetter<Array<NonNullable<useFragment.FromValue<TData>>>>;
+}>): useFragment.Result<Array<TData>>;
+/** {@inheritDoc @vue/apollo-composable!useFragment:function(1)} */
+declare function useFragment<TData = unknown, TVariables extends OperationVariables = OperationVariables>(options: MaybeRefOrGetter<useFragment.Options<TData, TVariables> & {
+    from: MaybeRefOrGetter<Array<null>>;
+}>): useFragment.Result<Array<null>>;
+/** {@inheritDoc @vue/apollo-composable!useFragment:function(1)} */
+declare function useFragment<TData = unknown, TVariables extends OperationVariables = OperationVariables>(options: MaybeRefOrGetter<useFragment.Options<TData, TVariables> & {
+    from: MaybeRefOrGetter<Array<useFragment.FromValue<TData>>>;
+}>): useFragment.Result<Array<TData | null>>;
+/** {@inheritDoc @vue/apollo-composable!useFragment:function(1)} */
+declare function useFragment<TData = unknown, TVariables extends OperationVariables = OperationVariables>(options: MaybeRefOrGetter<useFragment.Options<TData, TVariables> & {
+    from: MaybeRefOrGetter<NonNullable<useFragment.FromValue<TData>>>;
+}>): useFragment.Result<TData>;
+/** {@inheritDoc @vue/apollo-composable!useFragment:function(1)} */
+declare function useFragment<TData = unknown, TVariables extends OperationVariables = OperationVariables>(options: MaybeRefOrGetter<useFragment.Options<TData, TVariables> & {
+    from: MaybeRefOrGetter<null>;
+}>): useFragment.Result<null>;
+/** {@inheritDoc @vue/apollo-composable!useFragment:function(1)} */
+declare function useFragment<TData = unknown, TVariables extends OperationVariables = OperationVariables>(options: MaybeRefOrGetter<useFragment.Options<TData, TVariables> & {
+    from: MaybeRefOrGetter<useFragment.FromValue<TData>>;
+}>): useFragment.Result<TData | null>;
+
+declare namespace useQuery {
+    import _self = useQuery;
+    /**
+     * Type for the `variables` option parameter: either a ref/getter of the full variables object,
+     * or an object mapping individual variable names to refs/getters.
+     *
+     * @example
+     * ```ts
+     * // Single ref/getter for all variables
+     * const variables = reactive({ id: 1 })
+     * useQuery(query, { variables })
+     *
+     * // Object mapping individual variable names to refs/getters
+     * const id = ref(1)
+     * useQuery(query, { variables: { id } })
+     *
+     * // With props or any reactive values
+     * const { id } = defineProps<{ id: number }>()
+     * useQuery(query, { variables: () => ({ id }) })
+     * ```
+     */
+    type ReactiveVariablesParameter<TVariables extends OperationVariables> = MaybeRefOrGetter<TVariables> | {
+        [Key in keyof TVariables]: MaybeRefOrGetter<TVariables[Key]>;
+    };
+    /** Makes `variables` required only when TVariables has required properties. */
+    type ReactiveVariablesOption<TVariables extends OperationVariables> = {} extends TVariables ? {
+        variables?: ReactiveVariablesParameter<TVariables>;
+    } : {
+        variables: ReactiveVariablesParameter<TVariables>;
+    };
+    namespace Base {
+        /** Apollo's WatchQueryOptions without `query` and `variables` (handled separately). */
+        type WatchQueryOptions<TData = unknown, TVariables extends OperationVariables = OperationVariables> = Omit<ApolloClient.WatchQueryOptions<TData, TVariables>, 'variables' | 'query'>;
+        /** Vue-Apollo specific options. */
+        interface VueApolloOptions {
+            /**
+             * ID of a named Apollo client to use instead of the default.
+             *
+             * @group 4. Vue-Apollo
+             */
+            clientId?: string | undefined;
+            /**
+             * Reactive flag to enable/disable the query.
+             *
+             * @group 4. Vue-Apollo
+             */
+            enabled?: MaybeRefOrGetter<boolean | undefined>;
+            /**
+             * Throttle variable updates (ms).
+             *
+             * @group 4. Vue-Apollo
+             */
+            throttle?: number | undefined;
+            /**
+             * Debounce variable updates (ms).
+             *
+             * @group 4. Vue-Apollo
+             */
+            debounce?: number | undefined;
+            /**
+             * Whether to prefetch on server.
+             *
+             * @defaultValue true
+             * @group 4. Vue-Apollo
+             */
+            prefetch?: boolean | undefined;
+            /**
+             * Keep previous result while loading new data.
+             *
+             * @defaultValue false
+             * @group 4. Vue-Apollo
+             */
+            keepPreviousResult?: boolean | undefined;
+            /**
+             * Whether to await complete data before resolving. Use with `@stream` and `@defer` GraphQL directives.
+             *
+             * Only affects SSR prefetch and `await useQuery()`.
+             *
+             * @default false
+             * @group 4. Vue-Apollo
+             */
+            awaitComplete?: boolean | undefined;
+        }
+        /** Options for useQuery. */
+        interface Options<TData = unknown, TVariables extends OperationVariables = OperationVariables> extends VueApolloOptions {
+            /**
+             * Specifies how the query interacts with the Apollo Client cache during execution (for example, whether it checks the cache for results before sending a request to the server).
+             *
+             * For details, see [Setting a fetch policy](https://www.apollographql.com/docs/react/data/queries/#setting-a-fetch-policy).
+             *
+             * The default value is `cache-first`.
+             *
+             * @group 3. Caching options
+             */
+            fetchPolicy?: ApolloClient.WatchQueryOptions<TData, TVariables>['fetchPolicy'] | undefined;
+            /**
+             * Specifies the `FetchPolicy` to be used after this query has completed.
+             *
+             * @group 3. Caching options
+             */
+            nextFetchPolicy?: ApolloClient.WatchQueryOptions<TData, TVariables>['nextFetchPolicy'] | undefined;
+            /**
+             * Defaults to the initial value of options.fetchPolicy, but can be explicitly
+             * configured to specify the WatchQueryFetchPolicy to revert back to whenever
+             * variables change (unless nextFetchPolicy intervenes).
+             *
+             * @group 3. Caching options
+             */
+            initialFetchPolicy?: ApolloClient.WatchQueryOptions<TData, TVariables>['initialFetchPolicy'] | undefined;
+            /**
+             * Specifies whether a `NetworkStatus.refetch` operation should merge
+             * incoming field data with existing data, or overwrite the existing data.
+             * Overwriting is probably preferable, but merging is currently the default
+             * behavior, for backwards compatibility with Apollo Client 3.x.
+             *
+             * @group 3. Caching options
+             */
+            refetchWritePolicy?: ApolloClient.WatchQueryOptions<TData, TVariables>['refetchWritePolicy'] | undefined;
+            /**
+             * Specifies how the query handles a response that returns both GraphQL errors and partial results.
+             *
+             * For details, see [GraphQL error policies](https://www.apollographql.com/docs/react/data/error-handling/#graphql-error-policies).
+             *
+             * The default value is `none`, meaning that the query result includes error details but not partial results.
+             *
+             * @group 1. Operation options
+             */
+            errorPolicy?: ApolloClient.WatchQueryOptions<TData, TVariables>['errorPolicy'] | undefined;
+            /**
+             * If `true`, the query can return partial results from the cache if the cache doesn't contain results for all queried fields.
+             *
+             * @default false
+             * @group 3. Caching options
+             */
+            returnPartialData?: ApolloClient.WatchQueryOptions<TData, TVariables>['returnPartialData'] | undefined;
+            /**
+             * If you're using [Apollo Link](https://www.apollographql.com/docs/react/api/link/introduction/), this object is the initial value of the `context` object that's passed along your link chain.
+             *
+             * @group 2. Networking options
+             */
+            context?: ApolloClient.WatchQueryOptions<TData, TVariables>['context'] | undefined;
+            /**
+             * Specifies the interval (in milliseconds) at which the query polls for updated results.
+             *
+             * @default 0 // (no polling)
+             *
+             * @group 2. Networking options
+             */
+            pollInterval?: ApolloClient.WatchQueryOptions<TData, TVariables>['pollInterval'] | undefined;
+            /**
+             * If `true`, the next state event is emitted whenever the network status changes or a network error occurs.
+             *
+             * @group 2. Networking options
+             */
+            notifyOnNetworkStatusChange?: ApolloClient.WatchQueryOptions<TData, TVariables>['notifyOnNetworkStatusChange'] | undefined;
+            /**
+             * A callback function that's called whenever a refetch attempt occurs
+             * while polling. If the function returns `true`, the refetch is
+             * skipped and not reattempted until the next poll interval.
+             *
+             * @group 2. Networking options
+             */
+            skipPollAttempt?: ApolloClient.WatchQueryOptions<TData, TVariables>['skipPollAttempt'] | undefined;
+        }
+    }
+    type Options<TData = unknown, TVariables extends OperationVariables = OperationVariables> = Base.Options<TData, TVariables> & ReactiveVariablesOption<TVariables>;
+    /** Options when query is explicitly disabled. Variables are optional. */
+    type DisabledOptions<TData = unknown, TVariables extends OperationVariables = OperationVariables> = Base.Options<TData, TVariables> & {
+        enabled: MaybeRefOrGetter<false>;
+        variables?: ReactiveVariablesParameter<TVariables>;
+    };
+    /** Options that can reactively switch between enabled and disabled. */
+    type MaybeDisabledOptions<TData = unknown, TVariables extends OperationVariables = OperationVariables> = Options<TData, TVariables> | DisabledOptions<TData, TVariables>;
+    /** Query result with Vue-Apollo naming: `result`/`resultState` instead of `data`/`dataState`. */
+    type Current<TData, TStates extends DataState<TData>['dataState'] = DataState<TData>['dataState']> = RenameKey<RenameKey<ObservableQuery.Result<TData, TStates>, 'dataState', 'resultState'>, 'data', 'result'>;
+    /** FetchMore result with Vue-Apollo naming: `result` instead of `data`. */
+    type FetchMoreResult<TData> = RenameKey<ApolloClient.QueryResult<MaybeMasked<TData>>, 'data', 'result'>;
+    namespace Base {
+        /** Result returned by useQuery. */
+        interface Result<TData = unknown, TVariables extends OperationVariables = OperationVariables> {
+            /**
+             * If `true`, the query is still in flight.
+             *
+             * @group 2. Network info
+             */
+            loading: Readonly<Ref<boolean>>;
+            /**
+             * A number indicating the current network state of the query's associated request. [See possible values.](https://github.com/apollographql/apollo-client/blob/d96f4578f89b933c281bb775a39503f6cdb59ee8/src/core/networkStatus.ts#L4)
+             *
+             * Used in conjunction with the [`notifyOnNetworkStatusChange`](./Options.md#notifyonnetworkstatuschange) option.
+             *
+             * @group 2. Network info
+             */
+            networkStatus: Readonly<Ref<NetworkStatus>>;
+            /**
+             * A single ErrorLike object describing the error that occurred during the latest
+             * query execution.
+             *
+             * For more information, see [Handling operation errors](https://www.apollographql.com/docs/react/data/error-handling/).
+             *
+             * @group 1. Operation data
+             */
+            error: Readonly<Ref<ErrorLike | undefined>>;
+            /**
+             * Event triggered when query result data is received.
+             *
+             * Fires when `resultState` is `'complete'`, `'partial'`, or `'streaming'`.
+             * Does not fire for `'empty'` state or errors.
+             *
+             * @group 6. Events
+             */
+            onResult: EventHookOn<MaybeMasked<TData>>;
+            /**
+             * Event triggered when a complete query result is received.
+             *
+             * Fires only when `resultState` is `'complete'`.
+             *
+             * @group 6. Events
+             */
+            onCompleteResult: EventHookOn<MaybeMasked<TData>>;
+            /**
+             * Event triggered when a partial query result is received.
+             *
+             * Fires only when `resultState` is `'partial'`. Requires `returnPartialData: true`.
+             *
+             * @group 6. Events
+             */
+            onPartialResult: EventHookOn<MaybeMasked<TData>>;
+            /**
+             * Event triggered when streaming query data is received.
+             *
+             * Fires only when `resultState` is `'streaming'`. Use with `@defer` or `@stream` directive.
+             *
+             * @group 6. Events
+             */
+            onStreamingResult: EventHookOn<MaybeMasked<TData>>;
+            /**
+             * Event triggered when a query error occurs.
+             *
+             * @group 6. Events
+             */
+            onError: EventHookOn<ErrorLike>;
+            /**
+             * Start the query. Has no effect if the query is already active or if `enabled` option is `false`.
+             *
+             * @group 4. Lifecycle
+             */
+            start: () => void;
+            /**
+             * Stop the query. The query can be restarted by calling {@link start}.
+             *
+             * @group 4. Lifecycle
+             */
+            stop: () => void;
+            /**
+             * Stop and restart the query.
+             *
+             * @group 4. Lifecycle
+             */
+            restart: () => Promise<void>;
+            /**
+             * Re-execute the query, optionally with new variables.
+             *
+             * Use this for imperative refetching (e.g., "refresh" buttons, pull-to-refresh).
+             * The reactive `current`, `result`, `loading`, etc. refs will update automatically
+             * when the refetch completes.
+             *
+             * ::: tip When to use refetch vs reactive variables
+             *
+             * - Use **reactive `variables`** in options for variables that should stay in sync
+             *   with your component state (e.g., route params, form inputs).
+             * - Use **`refetch()`** for one-time imperative fetches that don't need to persist.
+             *
+             * :::
+             *
+             * ::: warning Variables passed to refetch are temporary
+             *
+             * If you pass variables to `refetch({ id: 2 })`, Apollo uses them for this single
+             * request only. The exposed `variables` ref will **not** update. If your reactive
+             * `options.variables` changes later, the query will use those values, not the ones
+             * passed to refetch.
+             *
+             * :::
+             *
+             * @param variables - Optional variables to use for this refetch only.
+             * @returns Promise resolving to the query result, or `undefined` if query is stopped.
+             *
+             * @example
+             * ```ts
+             * const { refetch } = useQuery(GetUser, { variables: { id: userId } })
+             *
+             * // Re-run with current variables
+             * await refetch()
+             *
+             * // One-time refetch with different variables
+             * await refetch({ id: 'other-user' })
+             * ```
+             *
+             * @group 5. Query methods
+             */
+            refetch: (variables?: TVariables) => Promise<RenameKey<ApolloClient.QueryResult<TData>, 'data', 'result'> | undefined>;
+            /**
+             * Fetch more data for pagination or infinite scroll.
+             *
+             * Use this to load additional items (e.g., next page) and merge them with existing results.
+             * The reactive refs will update automatically when the fetch completes.
+             *
+             * ::: tip How data is merged
+             *
+             * You can merge data in two ways:
+             *
+             * 1. **`updateQuery` callback** - Manually merge `fetchMoreResult` with `previousQueryResult`
+             *
+             * 2. **Field policies** - Define `merge` functions in your Apollo cache configuration
+             *
+             * If using `fetchPolicy: 'no-cache'`, you **must** provide `updateQuery`.
+             *
+             * :::
+             *
+             * @param options - Options including variables for the next page and optional updateQuery.
+             * @returns Promise resolving to the fetchMore result, or `undefined` if query is stopped.
+             *
+             * @example
+             * ```ts
+             * const { result, fetchMore } = useQuery(GetPosts, {
+             *   variables: { offset: 0, limit: 10 }
+             * })
+             *
+             * async function loadMore() {
+             *   await fetchMore({
+             *     variables: { offset: result.value.posts.length },
+             *     updateQuery: (previousQueryResult, { fetchMoreResult }) => ({
+             *       ...previousQueryResult,
+             *       posts: [...previousQueryResult.posts, ...fetchMoreResult.posts]
+             *     })
+             *   })
+             * }
+             * ```
+             *
+             * @group 5. Query methods
+             */
+            fetchMore: <TFetchData = TData, TFetchVars extends OperationVariables = TVariables>(options: ObservableQuery.FetchMoreOptions<TData, TVariables, TFetchData, TFetchVars>) => Promise<_self.FetchMoreResult<TFetchData>> | undefined;
+            /**
+             * Directly update the cached query result.
+             *
+             * Use this to optimistically update the cache or modify data without a network request.
+             * The reactive refs will update automatically when the cache is written.
+             *
+             * ::: warning Use sparingly
+             *
+             * Prefer cache field policies or [`client.writeQuery`](https://www.apollographql.com/docs/react/api/core/ApolloClient#writequery) for most cache updates.
+             * `updateQuery` is useful for quick local modifications but bypasses
+             * Apollo's normal cache update mechanisms.
+             *
+             * :::
+             *
+             * @param mapFn - Function that receives current data and returns new data.
+             *
+             * @example
+             * ```ts
+             * const { updateQuery } = useQuery(GetTodos)
+             *
+             * function addOptimisticTodo(todo: Todo) {
+             *   updateQuery((_, { previousData }) => ({
+             *     ...previousData,
+             *     todos: [...previousData.todos, todo]
+             *   }))
+             * }
+             * ```
+             *
+             * @group 5. Query methods
+             */
+            updateQuery: (mapFn: UpdateQueryMapFn<TData, TVariables>) => void;
+            /**
+             * Subscribe to additional data and merge it with the query result.
+             *
+             * Use this to add real-time updates to a query via GraphQL subscriptions.
+             * When subscription data arrives, the `updateQuery` callback merges it
+             * with the existing query data.
+             *
+             * ::: tip Automatic cleanup
+             *
+             * The subscription is automatically cleaned up when the query is stopped
+             * or the component is unmounted. You can also manually unsubscribe by
+             * calling the returned function.
+             *
+             * :::
+             *
+             * @param options - Subscription options including document, variables, and updateQuery.
+             * @returns Unsubscribe function to manually stop the subscription.
+             *
+             * @example
+             * ```ts
+             * const { subscribeToMore } = useQuery(GetMessages, {
+             *   variables: { channelId }
+             * })
+             *
+             * // Subscribe to new messages
+             * const unsubscribe = subscribeToMore({
+             *   document: OnMessageAdded,
+             *   variables: { channelId },
+             *   updateQuery: (_, { previousData, subscriptionData }) => {
+             *     if (!subscriptionData.data) return previousData
+             *     return {
+             *       ...previousData,
+             *       messages: [...previousData.messages, subscriptionData.data.messageAdded]
+             *     }
+             *   }
+             * })
+             *
+             * // Optionally unsubscribe manually
+             * onUnmounted(() => unsubscribe())
+             * ```
+             *
+             * @group 5. Query methods
+             */
+            subscribeToMore: <TSubscriptionData = TData, TSubscriptionVariables extends OperationVariables = TVariables>(options: ObservableQuery.SubscribeToMoreOptions<TData, TSubscriptionVariables, TSubscriptionData, TVariables>) => (() => void) | undefined;
+            /**
+             * The GraphQL document being queried.
+             *
+             * @group 3. Refs
+             */
+            document: Readonly<Ref<DocumentNode>>;
+            /**
+             * Current variables being sent to the query (after debounce/throttle).
+             *
+             * @group 3. Refs
+             */
+            variables: Readonly<Ref<TVariables>>;
+            /**
+             * Current options.
+             *
+             * @group 3. Refs
+             */
+            options: Readonly<Ref<_self.Options<TData, TVariables>>>;
+            /**
+             * The underlying Apollo ObservableQuery instance. Undefined when the query is stopped.
+             *
+             * @group 3. Refs
+             */
+            query: Readonly<Ref<ObservableQuery<TData, TVariables> | undefined>>;
+        }
+    }
+    interface Result<TData = unknown, TVariables extends OperationVariables = OperationVariables, TStates extends DataState<TData>['dataState'] = DataState<TData>['dataState']> extends Omit<Base.Result<TData, TVariables>, 'current' | 'result' | 'onNextState'> {
+        /**
+         * Current state as a discriminated union type.
+         *
+         * @group 1. Operation data
+         */
+        current: Readonly<Ref<Current<MaybeMasked<TData>, TStates>>>;
+        /**
+         * An object containing the result of your GraphQL query after it completes.
+         *
+         * This value might be `undefined` if a query results in one or more errors (depending on the query's `errorPolicy`).
+         *
+         * @group 1. Operation data
+         */
+        result: Readonly<Ref<Current<MaybeMasked<TData>, TStates>['result']>>;
+        /**
+         * Event triggered when the query state changes.
+         *
+         * This is the most granular event - it fires on every state update including
+         * loading states, network status changes, and result updates.
+         *
+         * @group 6. Events
+         */
+        onNextState: EventHookOn<Current<MaybeMasked<TData>, TStates>>;
+    }
+    namespace DocumentationTypes {
+        /** @group Composables Namespaces */
+        namespace useQuery {
+            /** {@inheritDoc @vue/apollo-composable!useQuery.ReactiveVariablesParameter:type} */
+            type ReactiveVariablesParameter = MaybeRefOrGetter<OperationVariables> | Record<string, MaybeRefOrGetter<any>>;
+            /** Current state. */
+            interface Current {
+                /**
+                 * An object containing the result of your GraphQL query after it completes.
+                 *
+                 * This value might be `undefined` if a query results in one or more errors (depending on the query's `errorPolicy`).
+                 *
+                 * @group 1. Operation data
+                 */
+                result: object | null | undefined;
+                /**
+                 * Describes the completeness of `result`.
+                 *
+                 * - `empty`: No data could be fulfilled from the cache or the result is
+                 *   incomplete. `result` is `undefined`.
+                 * - `partial`: Some data could be fulfilled from the cache but `result` is
+                 *   incomplete. This is only possible when `returnPartialData` is `true`.
+                 * - `streaming`: `result` is incomplete as a result of a deferred query and
+                 *   the result is still streaming in.
+                 * - `complete`: `result` is a fully satisfied query result fulfilled
+                 *   either from the cache or network.
+                 *
+                 * @group 1. Operation data
+                 */
+                resultState: 'empty' | 'complete' | 'streaming' | 'partial';
+                /**
+                 * If `true`, the query is still in flight.
+                 *
+                 * @group 2. Network info
+                 */
+                loading: boolean;
+                /**
+                 * A number indicating the current network state of the query's associated request. [See possible values.](https://github.com/apollographql/apollo-client/blob/d96f4578f89b933c281bb775a39503f6cdb59ee8/src/core/networkStatus.ts#L4)
+                 *
+                 * Used in conjunction with the [`notifyOnNetworkStatusChange`](./Options.md#notifyonnetworkstatuschange) option.
+                 *
+                 * @group 2. Network info
+                 */
+                networkStatus: NetworkStatus;
+                /**
+                 * A single ErrorLike object describing the error that occurred during the latest
+                 * query execution.
+                 *
+                 * For more information, see [Handling operation errors](https://www.apollographql.com/docs/react/data/error-handling/).
+                 *
+                 * @group 1. Operation data
+                 */
+                error?: ErrorLike;
+                /**
+                 * Describes whether `result` is a complete or partial result. This flag is only
+                 * set when `returnPartialData` is `true` in query options.
+                 *
+                 * @deprecated This field will be removed in a future version of Apollo Client.
+                 * @group 1. Operation data
+                 */
+                partial: boolean;
+            }
+            /** {@inheritDoc @vue/apollo-composable!useQuery.Base.Options:interface} */
+            interface Options extends _self.Base.Options {
+                /**
+                 * An object containing all of the GraphQL variables your query requires to execute.
+                 *
+                 * Each key in the object corresponds to a variable name, and that key's value corresponds to the variable value.
+                 *
+                 * @group 1. Operation options
+                 */
+                variables?: ReactiveVariablesParameter;
+            }
+            /** FetchMore result with Vue-Apollo naming. */
+            interface FetchMoreResult {
+                /**
+                 * An object containing the result of your GraphQL query after it completes.
+                 *
+                 * This value might be `undefined` if a query results in one or more errors (depending on the query's `errorPolicy`).
+                 *
+                 * @group 1. Operation data
+                 */
+                result: object | null | undefined;
+                /**
+                 * A single ErrorLike object describing the error that occurred during the latest
+                 * query execution.
+                 *
+                 * For more information, see [Handling operation errors](https://www.apollographql.com/docs/react/data/error-handling/).
+                 *
+                 * @group 1. Operation data
+                 */
+                error?: ErrorLike;
+            }
+            /**
+             * Options for fetchMore.
+             */
+            interface FetchMoreOptions {
+                /**
+                 * A GraphQL query string parsed into an AST with the gql template literal.
+                 *
+                 * @group 1. Operation options
+                 */
+                query?: DocumentNode;
+                /**
+                 * An object containing all of the GraphQL variables your query requires to execute.
+                 *
+                 * Each key in the object corresponds to a variable name, and that key's value corresponds to the variable value.
+                 *
+                 * @group 1. Operation options
+                 */
+                variables?: OperationVariables;
+                /**
+                 * Specifies how the query handles a response that returns both GraphQL errors and partial results.
+                 *
+                 * For details, see [GraphQL error policies](https://www.apollographql.com/docs/react/data/error-handling/#graphql-error-policies).
+                 *
+                 * The default value is `none`, meaning that the query result includes error details but not partial results.
+                 *
+                 * @group 1. Operation options
+                 */
+                errorPolicy?: ErrorPolicy;
+                /**
+                 * If you're using [Apollo Link](https://www.apollographql.com/docs/react/api/link/introduction/), this object is the initial value of the `context` object that's passed along your link chain.
+                 *
+                 * @group 2. Networking options
+                 */
+                context?: DefaultContext;
+                /**
+                 * A function which updates the query result with the new fetchMore result.
+                 *
+                 * @group 3. Query methods
+                 */
+                updateQuery?: (previousQueryResult: object, options: {
+                    fetchMoreResult: object;
+                    variables: object;
+                }) => object;
+            }
+            /**
+             * Options for subscribeToMore.
+             */
+            interface SubscribeToMoreOptions {
+                /**
+                 * A GraphQL subscription document parsed into an AST with the gql template literal.
+                 *
+                 * @group 1. Operation options
+                 */
+                document: DocumentNode;
+                /**
+                 * An object containing all of the GraphQL variables your subscription requires to execute.
+                 *
+                 * @group 1. Operation options
+                 */
+                variables?: OperationVariables;
+                /**
+                 * A function that defines how incoming subscription data is merged with the existing query data.
+                 *
+                 * ::: warning First argument is deprecated
+                 *
+                 * The first argument (`unsafePreviousData`) is not type-safe and may contain partial data.
+                 * It will be removed in Apollo Client v5. Use `options.previousData` instead.
+                 *
+                 * :::
+                 *
+                 * @group 3. Query methods
+                 */
+                updateQuery?: (unsafePreviousData: object, options: {
+                    subscriptionData: {
+                        data: object;
+                    };
+                    previousData: object;
+                }) => object;
+                /**
+                 * A callback function that's called when the subscription encounters an error.
+                 *
+                 * @group 3. Query methods
+                 */
+                onError?: (error: Error) => void;
+                /**
+                 * If you're using [Apollo Link](https://www.apollographql.com/docs/react/api/link/introduction/), this object is the initial value of the `context` object that's passed along your link chain.
+                 *
+                 * @group 2. Networking options
+                 */
+                context?: DefaultContext;
+            }
+            /** {@inheritDoc @vue/apollo-composable!useQuery.Base.Result:interface} */
+            interface Result extends Omit<_self.Base.Result, 'current' | 'result' | 'onNextState' | 'onResult' | 'onCompleteResult' | 'onPartialResult' | 'onStreamingResult' | 'document' | 'variables' | 'options' | 'query' | 'fetchMore' | 'updateQuery' | 'subscribeToMore'> {
+                /** {@inheritDoc @vue/apollo-composable!useQuery.Result#current:member} */
+                current: Ref<Current>;
+                /** {@inheritDoc @vue/apollo-composable!useQuery.Result#result:member} */
+                result: Ref<object | null>;
+                /** {@inheritDoc @vue/apollo-composable!useQuery.Base.Result#error:member} */
+                error: Ref<ErrorLike | undefined>;
+                /** {@inheritDoc @vue/apollo-composable!useQuery.Base.Result#loading:member} */
+                loading: Ref<boolean>;
+                /** {@inheritDoc @vue/apollo-composable!useQuery.Base.Result#networkStatus:member} */
+                networkStatus: Ref<NetworkStatus>;
+                /** {@inheritDoc @vue/apollo-composable!useQuery.Result#onNextState:member} */
+                onNextState: EventHookOn<Current>;
+                /** {@inheritDoc @vue/apollo-composable!useQuery.Base.Result#onResult:member} */
+                onResult: EventHookOn<object>;
+                /** {@inheritDoc @vue/apollo-composable!useQuery.Base.Result#onCompleteResult:member} */
+                onCompleteResult: EventHookOn<object>;
+                /** {@inheritDoc @vue/apollo-composable!useQuery.Base.Result#onPartialResult:member} */
+                onPartialResult: EventHookOn<object>;
+                /** {@inheritDoc @vue/apollo-composable!useQuery.Base.Result#onStreamingResult:member} */
+                onStreamingResult: EventHookOn<object>;
+                /** {@inheritDoc @vue/apollo-composable!useQuery.Base.Result#document:member} */
+                document: Ref<DocumentNode>;
+                /** {@inheritDoc @vue/apollo-composable!useQuery.Base.Result#variables:member} */
+                variables: Ref<OperationVariables>;
+                /** {@inheritDoc @vue/apollo-composable!useQuery.Base.Result#options:member} */
+                options: Ref<Options>;
+                /** {@inheritDoc @vue/apollo-composable!useQuery.Base.Result#query:member} */
+                query: Ref<ObservableQuery | undefined>;
+                /** {@inheritDoc @vue/apollo-composable!useQuery.Base.Result#fetchMore:member} */
+                fetchMore: (options: FetchMoreOptions) => Promise<FetchMoreResult> | undefined;
+                /** {@inheritDoc @vue/apollo-composable!useQuery.Base.Result#updateQuery:member} */
+                updateQuery: (mapFn: (unsafePreviousData: object, options: {
+                    previousData: object;
+                }) => object) => void;
+                /** {@inheritDoc @vue/apollo-composable!useQuery.Base.Result#subscribeToMore:member} */
+                subscribeToMore: (options: SubscribeToMoreOptions) => (() => void) | undefined;
+            }
+        }
+        /** {@inheritDoc @vue/apollo-composable!useQuery:function(1)} */
+        function useQuery(query: MaybeRefOrGetter<DocumentNode>, options?: MaybeRefOrGetter<useQuery.Options>): useQuery.Result & PromiseLike<useQuery.Result>;
+    }
+}
+/**
+ * A composable for executing GraphQL queries with full reactivity.
+ *
+ * @param query - A GraphQL document.
+ * @param options - Options to control how the query is executed.
+ * @returns Query result object with reactive refs.
+ *
+ * @group Composables
+ *
+ * @example
+ * ```vue
+ * <script setup lang="ts">
+ * import { useQuery } from '@vue/apollo-composable'
+ * import gql from 'graphql-tag'
+ *
+ * const GetUser = gql`query GetUser($id: ID!) { user(id: $id) { name } }`
+ *
+ * const { current } = useQuery(GetUser, {
+ *   variables: { id: '1' }
+ * })
+ * </script>
+ *
+ * <template>
+ *   <div v-if="current.loading">Loading...</div>
+ *   <div v-else-if="current.error">Error: {{ error.message }}</div>
+ *   <div v-else>{{ result }}</div>
+ * </template>
+ * ```
+ */
+declare function useQuery<TData = unknown, TVariables extends OperationVariables = OperationVariables>(query: MaybeRefOrGetter<DocumentNode | TypedDocumentNode<TData, TVariables>>, options: MaybeRefOrGetter<useQuery.Options<NoInfer<TData>, NoInfer<TVariables>> & {
+    returnPartialData: true;
+}>): useQuery.Result<TData, TVariables, 'empty' | 'complete' | 'streaming' | 'partial'> & PromiseLike<useQuery.Result<TData, TVariables, 'empty' | 'complete' | 'streaming' | 'partial'>>;
+declare function useQuery<TData = unknown, TVariables extends OperationVariables = OperationVariables>(query: MaybeRefOrGetter<DocumentNode | TypedDocumentNode<TData, TVariables>>, options: MaybeRefOrGetter<useQuery.Options<NoInfer<TData>, NoInfer<TVariables>> & {
+    returnPartialData: boolean;
+}>): useQuery.Result<TData, TVariables, 'empty' | 'complete' | 'streaming' | 'partial'> & PromiseLike<useQuery.Result<TData, TVariables, 'empty' | 'complete' | 'streaming' | 'partial'>>;
+declare function useQuery<TData = unknown, TVariables extends OperationVariables = OperationVariables>(query: MaybeRefOrGetter<DocumentNode | TypedDocumentNode<TData, TVariables>>, options: MaybeRefOrGetter<useQuery.MaybeDisabledOptions<NoInfer<TData>, NoInfer<TVariables>>>): useQuery.Result<TData, TVariables, 'empty' | 'complete' | 'streaming'> & PromiseLike<useQuery.Result<TData, TVariables, 'empty' | 'complete' | 'streaming'>>;
+declare function useQuery<TData = unknown, TVariables extends OperationVariables = OperationVariables>(query: MaybeRefOrGetter<DocumentNode | TypedDocumentNode<TData, TVariables>>, ...[options]: {} extends TVariables ? [options?: MaybeRefOrGetter<useQuery.Options<NoInfer<TData>, NoInfer<TVariables>>>] : [options: MaybeRefOrGetter<useQuery.Options<NoInfer<TData>, NoInfer<TVariables>>>]): useQuery.Result<TData, TVariables, 'empty' | 'complete' | 'streaming'> & PromiseLike<useQuery.Result<TData, TVariables, 'empty' | 'complete' | 'streaming'>>;
+
+declare namespace useLazyQuery {
+    export type { useQuery };
+    /** Options for useLazyQuery - same as useQuery but `enabled` is not applicable. */
+    export type Options<TData = unknown, TVariables extends OperationVariables = OperationVariables> = Omit<useQuery.Options<TData, TVariables>, 'enabled'>;
+    /** Options when query is disabled. */
+    export type DisabledOptions<TData = unknown, TVariables extends OperationVariables = OperationVariables> = Omit<useQuery.DisabledOptions<TData, TVariables>, 'enabled'>;
+    /** Result returned by useLazyQuery - extends useQuery.Result with `load` function. */
+    export interface Result<TData = unknown, TVariables extends OperationVariables = OperationVariables> extends useQuery.Result<TData, TVariables> {
+        /**
+         * Load the query. Starts the query if not already started.
+         *
+         * Unlike `useQuery`, which executes immediately, `useLazyQuery` waits until
+         * `load()` is called. After loading, the query behaves like a normal `useQuery`.
+         *
+         * @param variables - Optional variables to use for this load. If provided,
+         *                    these will be merged with any variables from options.
+         * @returns Promise resolving to the query result data when complete.
+         *
+         * @example
+         * ```ts
+         * const { load, result, loading } = useLazyQuery(GetUser)
+         *
+         * // Query doesn't execute until load() is called
+         * async function fetchUser(id: string) {
+         *   const data = await load({ id })
+         *   console.log('User loaded:', data)
+         * }
+         * ```
+         *
+         * @group 4. Lifecycle
+         */
+        load: (variables?: TVariables) => Promise<MaybeMasked<TData> | undefined>;
+    }
+    export namespace DocumentationTypes {
+        /** @group Composables Namespaces */
+        namespace useLazyQuery {
+            /** {@inheritDoc @vue/apollo-composable!useLazyQuery.Options:type} */
+            interface Options extends Omit<useQuery.DocumentationTypes.useQuery.Options, 'enabled'> {
+            }
+            /** {@inheritDoc @vue/apollo-composable!useLazyQuery.Result:interface} */
+            interface Result extends useQuery.DocumentationTypes.useQuery.Result {
+                /** {@inheritDoc @vue/apollo-composable!useLazyQuery.Result#load:member} */
+                load: (variables?: OperationVariables) => Promise<object | undefined>;
+            }
+        }
+        /** {@inheritDoc @vue/apollo-composable!useLazyQuery:function(1)} */
+        function useLazyQuery(query: MaybeRefOrGetter<DocumentNode>, options?: MaybeRefOrGetter<useLazyQuery.Options>): useLazyQuery.Result;
+    }
+}
+/**
+ * A composable for executing GraphQL queries lazily (on demand).
+ *
+ * Unlike `useQuery`, which executes immediately, `useLazyQuery` waits until
+ * `load()` is called. This is useful for queries that should only run in
+ * response to user actions (e.g., search, form submission).
+ *
+ * @param query - A GraphQL document.
+ * @param options - Options to control how the query is executed.
+ * @returns Query result object with reactive refs and `load` function.
+ *
+ * @group Composables
+ *
+ * @example
+ * ```vue
+ * <script setup lang="ts">
+ * import { useLazyQuery } from '@vue/apollo-composable'
+ * import gql from 'graphql-tag'
+ *
+ * const SearchUsers = gql`query SearchUsers($term: String!) { users(search: $term) { id name } }`
+ *
+ * const { load, result, loading } = useLazyQuery(SearchUsers)
+ *
+ * async function search(term: string) {
+ *   const data = await load({ term })
+ *   console.log('Found users:', data?.users)
+ * }
+ * </script>
+ *
+ * <template>
+ *   <input @keyup.enter="search($event.target.value)" />
+ *   <div v-if="loading">Searching...</div>
+ *   <ul v-else-if="result">
+ *     <li v-for="user in result.users" :key="user.id">{{ user.name }}</li>
+ *   </ul>
+ * </template>
+ * ```
+ */
+declare function useLazyQuery<TData = unknown, TVariables extends OperationVariables = OperationVariables>(query: MaybeRefOrGetter<DocumentNode | TypedDocumentNode<TData, TVariables>>, options?: MaybeRefOrGetter<useLazyQuery.Options<TData, TVariables>>): useLazyQuery.Result<TData, TVariables>;
+
+/**
+ * Returns a computed ref indicating if any query in the current component is loading.
+ *
+ * Must be called inside a setup function.
+ *
+ * @returns Computed ref that is `true` when any query in this component is loading.
+ *
+ * @group Loading Composables
+ *
+ * @example
+ * ```vue
+ * <script setup>
+ * import { useQuery, useQueryLoading } from '@vue/apollo-composable'
+ *
+ * // Multiple queries in this component
+ * const { result: users } = useQuery(GetUsers)
+ * const { result: posts } = useQuery(GetPosts)
+ *
+ * // Single loading indicator for all queries
+ * const loading = useQueryLoading()
+ * </script>
+ *
+ * <template>
+ *   <div v-if="loading">Loading...</div>
+ *   <div v-else>
+ *     <UserList :users="users" />
+ *     <PostList :posts="posts" />
+ *   </div>
+ * </template>
+ * ```
+ */
+declare function useQueryLoading(): ComputedRef<boolean>;
+/**
+ * Returns a computed ref indicating if any mutation in the current component is loading.
+ *
+ * Must be called inside a setup function.
+ *
+ * @returns Computed ref that is `true` when any mutation in this component is loading.
+ *
+ * @group Loading Composables
+ *
+ * @example
+ * ```vue
+ * <script setup>
+ * import { useMutation, useMutationLoading } from '@vue/apollo-composable'
+ *
+ * const { mutate: createUser } = useMutation(CreateUser)
+ * const { mutate: updateUser } = useMutation(UpdateUser)
+ *
+ * const saving = useMutationLoading()
+ * </script>
+ *
+ * <template>
+ *   <button :disabled="saving">
+ *     {{ saving ? 'Saving...' : 'Save' }}
+ *   </button>
+ * </template>
+ * ```
+ */
+declare function useMutationLoading(): ComputedRef<boolean>;
+/**
+ * Returns a computed ref indicating if any subscription in the current component is loading.
+ *
+ * Must be called inside a setup function.
+ *
+ * @returns Computed ref that is `true` when any subscription in this component is connecting.
+ *
+ * @group Loading Composables
+ *
+ * @example
+ * ```vue
+ * <script setup>
+ * import { useSubscription, useSubscriptionLoading } from '@vue/apollo-composable'
+ *
+ * const { result: messages } = useSubscription(OnNewMessage)
+ * const { result: notifications } = useSubscription(OnNotification)
+ *
+ * const connecting = useSubscriptionLoading()
+ * </script>
+ *
+ * <template>
+ *   <div v-if="connecting">Connecting...</div>
+ * </template>
+ * ```
+ */
+declare function useSubscriptionLoading(): ComputedRef<boolean>;
+/**
+ * Returns a computed ref indicating if any query in the entire app is loading.
+ *
+ * Can be called anywhere, including outside of setup functions.
+ *
+ * @returns Computed ref that is `true` when any query in the app is loading.
+ *
+ * @group Loading Composables
+ *
+ * @example
+ * ```vue
+ * <script setup>
+ * import { useGlobalQueryLoading } from '@vue/apollo-composable'
+ *
+ * // Show global loading indicator in app shell
+ * const loading = useGlobalQueryLoading()
+ * </script>
+ *
+ * <template>
+ *   <AppShell>
+ *     <template #header>
+ *       <LoadingBar v-if="loading" />
+ *     </template>
+ *     <RouterView />
+ *   </AppShell>
+ * </template>
+ * ```
+ */
+declare function useGlobalQueryLoading(): ComputedRef<boolean>;
+/**
+ * Returns a computed ref indicating if any mutation in the entire app is loading.
+ *
+ * Can be called anywhere, including outside of setup functions.
+ *
+ * @returns Computed ref that is `true` when any mutation in the app is loading.
+ *
+ * @group Loading Composables
+ */
+declare function useGlobalMutationLoading(): ComputedRef<boolean>;
+/**
+ * Returns a computed ref indicating if any subscription in the entire app is loading.
+ *
+ * Can be called anywhere, including outside of setup functions.
+ *
+ * @returns Computed ref that is `true` when any subscription in the app is connecting.
+ *
+ * @group Loading Composables
+ */
+declare function useGlobalSubscriptionLoading(): ComputedRef<boolean>;
+
+declare namespace useMutation {
+    import _self = useMutation;
+    /**
+     * Type for the `variables` option parameter: either a ref/getter of the full variables object,
+     * or an object mapping individual variable names to refs/getters.
+     *
+     * @example
+     * ```ts
+     * // Single ref/getter for all variables
+     * const variables = reactive({ text: 'Hello' })
+     * useMutation(mutation, { variables })
+     *
+     * // Object mapping individual variable names to refs/getters
+     * const text = ref('Hello')
+     * useMutation(mutation, { variables: { text } })
+     * ```
+     */
+    type ReactiveVariablesParameter<TVariables extends OperationVariables> = MaybeRefOrGetter<TVariables> | {
+        [Key in keyof TVariables]: MaybeRefOrGetter<TVariables[Key]>;
+    };
+    namespace Base {
+        /** Options for useMutation. */
+        interface Options<TData = unknown, TVariables extends OperationVariables = OperationVariables> {
+            /**
+             * By providing either an object or a callback function that, when invoked after
+             * a mutation, allows you to return optimistic data and optionally skip updates
+             * via the `IGNORE` sentinel object, Apollo Client caches this temporary
+             * (and potentially incorrect) response until the mutation completes, enabling
+             * more responsive UI updates.
+             *
+             * @group 1. Operation options
+             */
+            optimisticResponse?: ApolloClient.MutateOptions<TData, TVariables>['optimisticResponse'];
+            /**
+             * A `MutationQueryReducersMap`, which is map from query names to
+             * mutation query reducers. Briefly, this map defines how to incorporate the
+             * results of the mutation into the results of queries that are currently
+             * being watched by your application.
+             *
+             * @group 3. Caching options
+             */
+            updateQueries?: ApolloClient.MutateOptions<TData, TVariables>['updateQueries'];
+            /**
+             * An array (or a function that _returns_ an array) that specifies which queries
+             * you want to refetch after the mutation occurs.
+             *
+             * Each array value can be either:
+             *
+             * - An object containing the `query` to execute, along with any `variables`
+             *
+             * - A string indicating the operation name of the query to refetch
+             *
+             * @group 3. Caching options
+             */
+            refetchQueries?: ApolloClient.MutateOptions<TData, TVariables>['refetchQueries'];
+            /**
+             * If `true`, makes sure all queries included in `refetchQueries` are completed
+             * before the mutation is considered complete.
+             *
+             * @default false
+             * @group 3. Caching options
+             */
+            awaitRefetchQueries?: ApolloClient.MutateOptions<TData, TVariables>['awaitRefetchQueries'];
+            /**
+             * A function used to update the Apollo Client cache after the mutation completes.
+             *
+             * @group 3. Caching options
+             */
+            update?: ApolloClient.MutateOptions<TData, TVariables>['update'];
+            /**
+             * Optional callback for intercepting queries whose cache data has been updated
+             * by the mutation, as well as any queries specified in the `refetchQueries: [...]`
+             * list passed to `client.mutate`.
+             *
+             * Returning a `Promise` from `onQueryUpdated` will cause the final mutation
+             * `Promise` to await the returned `Promise`. Returning `false` causes the
+             * query to be ignored.
+             *
+             * @group 3. Caching options
+             */
+            onQueryUpdated?: ApolloClient.MutateOptions<TData, TVariables>['onQueryUpdated'];
+            /**
+             * Specifies how the mutation handles a response that returns both GraphQL errors
+             * and partial results.
+             *
+             * The default value is `none`, meaning that the mutation result includes error
+             * details but _not_ partial results.
+             *
+             * @group 1. Operation options
+             */
+            errorPolicy?: ErrorPolicy;
+            /**
+             * An object containing all of the GraphQL variables your mutation requires to execute.
+             *
+             * Each key in the object corresponds to a variable name, and that key's value corresponds to the variable value.
+             *
+             * Supports reactive variables - provide a ref, getter, or object with reactive properties.
+             *
+             * @group 1. Operation options
+             */
+            variables?: ReactiveVariablesParameter<TVariables>;
+            /**
+             * If you're using [Apollo Link](https://www.apollographql.com/docs/react/api/link/introduction/), this object is the initial value of the `context` object that's passed along your link chain.
+             *
+             * @group 2. Networking options
+             */
+            context?: DefaultContext;
+            /**
+             * Provide `no-cache` if the mutation's result should _not_ be written to the
+             * Apollo Client cache.
+             *
+             * The default value is `network-only` (which means the result _is_ written to the cache).
+             *
+             * @group 3. Caching options
+             */
+            fetchPolicy?: MutationFetchPolicy;
+            /**
+             * If `true`, keeps ROOT_MUTATION fields in the cache after mutation completes.
+             * By default, Apollo Client clears these to avoid retaining sensitive data.
+             *
+             * @group 3. Caching options
+             */
+            keepRootFields?: ApolloClient.MutateOptions<TData, TVariables>['keepRootFields'];
+            /**
+             * ID of a named Apollo client to use instead of the default.
+             *
+             * @group 4. Vue-Apollo
+             */
+            clientId?: string;
+            /**
+             * Controls error throwing behavior.
+             *
+             * - `'auto'` (default): Throws if no `onError` handler is registered
+             *
+             * - `'always'`: Always throws errors
+             *
+             * - `'never'`: Never throws errors
+             *
+             * @default 'auto'
+             * @group 4. Vue-Apollo
+             */
+            throws?: 'auto' | 'always' | 'never';
+        }
+        /** Result returned by useMutation. */
+        interface Result<TData = unknown, TVariables extends OperationVariables = OperationVariables> {
+            /**
+             * Call the mutation with optional variables and override options.
+             *
+             * @param options - Variables and options for this mutation call.
+             * @returns Promise resolving to the mutation result.
+             *
+             * @example
+             * ```ts
+             * const { mutate } = useMutation(AddTodo)
+             *
+             * // Call with variables
+             * const result = await mutate({ variables: { text: 'New todo' } })
+             *
+             * // With optimistic response
+             * await mutate({
+             *   variables: { text: 'New todo' },
+             *   optimisticResponse: {
+             *     addTodo: { __typename: 'Todo', id: 'temp', text: 'New todo', completed: false }
+             *   }
+             * })
+             * ```
+             *
+             * @group 1. Mutation
+             */
+            mutate: _self.MutateFunction<TData, TVariables>;
+            /**
+             * The data returned from your mutation. Can be `undefined` if `errorPolicy`
+             * is `all` or `ignore` and the server returns a GraphQL response with `errors`
+             * but not `data`, or a network error is returned.
+             *
+             * @group 2. Operation data
+             */
+            result: Readonly<Ref<MaybeMasked<TData> | null | undefined>>;
+            /**
+             * If the mutation produces one or more errors, this object contains either an
+             * array of `graphQLErrors` or a single `networkError`. Otherwise, this value
+             * is `undefined`.
+             *
+             * @group 2. Operation data
+             */
+            error: Readonly<Ref<ErrorLike | undefined>>;
+            /**
+             * If `true`, the mutation is currently in flight.
+             *
+             * @group 3. Network info
+             */
+            loading: Readonly<Ref<boolean>>;
+            /**
+             * If `true`, the mutation's mutate function has been called.
+             *
+             * @group 3. Network info
+             */
+            called: Readonly<Ref<boolean>>;
+            /**
+             * Reset the mutation's result to its initial, uncalled state.
+             *
+             * @group 4. Lifecycle
+             */
+            reset: () => void;
+            /**
+             * Event triggered when the mutation completes successfully.
+             *
+             * @group 5. Events
+             */
+            onDone: EventHookOn<ApolloClient.MutateResult<MaybeMasked<TData>>>;
+            /**
+             * Event triggered when the mutation encounters an error.
+             *
+             * @group 5. Events
+             */
+            onError: EventHookOn<ErrorLike>;
+            /**
+             * The GraphQL document being mutated.
+             *
+             * @group 6. Refs
+             */
+            document: Readonly<Ref<DocumentNode>>;
+            /**
+             * Current options.
+             *
+             * @group 6. Refs
+             */
+            options: Readonly<Ref<_self.Options<TData, TVariables> | undefined>>;
+        }
+    }
+    /** Options for useMutation. */
+    type Options<TData = unknown, TVariables extends OperationVariables = OperationVariables> = Base.Options<TData, TVariables>;
+    /** Options when calling the mutate function. */
+    type MutateOptions<TData = unknown, TVariables extends OperationVariables = OperationVariables> = Omit<Options<TData, TVariables>, 'clientId' | 'throws' | 'variables'> & {
+        /**
+         * Variables for this mutation call. Not reactive - pass plain values.
+         *
+         * @group 1. Operation options
+         */
+        variables?: TVariables;
+        /**
+         * Context can be a callback function that receives the hook-level context
+         * and returns the final context value.
+         *
+         * @group 2. Networking options
+         */
+        context?: DefaultContext | ((hookContext: DefaultContext | undefined) => DefaultContext);
+    };
+    /** Type for mutate function that requires variables. */
+    type MutateFunction<TData = unknown, TVariables extends OperationVariables = OperationVariables> = (options?: MutateOptions<TData, TVariables> & {
+        variables?: TVariables;
+    }) => Promise<ApolloClient.MutateResult<MaybeMasked<TData>>>;
+    /** {@inheritDoc @vue/apollo-composable!useMutation.Base.Result:interface} */
+    interface Result<TData = unknown, TVariables extends OperationVariables = OperationVariables> extends Base.Result<TData, TVariables> {
+    }
+    namespace DocumentationTypes {
+        /** @group Composables Namespaces */
+        namespace useMutation {
+            /** {@inheritDoc @vue/apollo-composable!useMutation.ReactiveVariablesParameter:type} */
+            type ReactiveVariablesParameter = MaybeRefOrGetter<OperationVariables> | Record<string, MaybeRefOrGetter<any>>;
+            /** {@inheritDoc @vue/apollo-composable!useMutation.Base.Options:interface} */
+            interface Options {
+                /** {@inheritDoc @vue/apollo-composable!useMutation.Base.Options#optimisticResponse:member} */
+                optimisticResponse?: object | ((vars: object) => object);
+                /** {@inheritDoc @vue/apollo-composable!useMutation.Base.Options#updateQueries:member} */
+                updateQueries?: Record<string, (prev: object, options: {
+                    mutationResult: object;
+                }) => object>;
+                /** {@inheritDoc @vue/apollo-composable!useMutation.Base.Options#refetchQueries:member} */
+                refetchQueries?: Array<string | {
+                    query: DocumentNode;
+                    variables?: object;
+                }> | ((result: object) => Array<string | {
+                    query: DocumentNode;
+                    variables?: object;
+                }>);
+                /** {@inheritDoc @vue/apollo-composable!useMutation.Base.Options#awaitRefetchQueries:member} */
+                awaitRefetchQueries?: boolean;
+                /** {@inheritDoc @vue/apollo-composable!useMutation.Base.Options#update:member} */
+                update?: (cache: ApolloCache, result: {
+                    data?: object;
+                }) => void;
+                /** {@inheritDoc @vue/apollo-composable!useMutation.Base.Options#onQueryUpdated:member} */
+                onQueryUpdated?: (observableQuery: object) => boolean | Promise<unknown>;
+                /** {@inheritDoc @vue/apollo-composable!useMutation.Base.Options#errorPolicy:member} */
+                errorPolicy?: ErrorPolicy;
+                /** {@inheritDoc @vue/apollo-composable!useMutation.Base.Options#variables:member} */
+                variables?: ReactiveVariablesParameter;
+                /** {@inheritDoc @vue/apollo-composable!useMutation.Base.Options#context:member} */
+                context?: DefaultContext;
+                /** {@inheritDoc @vue/apollo-composable!useMutation.Base.Options#fetchPolicy:member} */
+                fetchPolicy?: MutationFetchPolicy;
+                /** {@inheritDoc @vue/apollo-composable!useMutation.Base.Options#keepRootFields:member} */
+                keepRootFields?: boolean;
+                /** {@inheritDoc @vue/apollo-composable!useMutation.Base.Options#clientId:member} */
+                clientId?: string;
+                /** {@inheritDoc @vue/apollo-composable!useMutation.Base.Options#throws:member} */
+                throws?: 'auto' | 'always' | 'never';
+            }
+            /** Options when calling the mutate function. */
+            interface MutateOptions extends Omit<Options, 'clientId' | 'throws' | 'variables'> {
+                /**
+                 * Variables for this mutation call.
+                 *
+                 * @group 1. Operation options
+                 */
+                variables?: OperationVariables;
+                /**
+                 * Context can be a callback or object.
+                 *
+                 * @group 2. Networking options
+                 */
+                context?: DefaultContext | ((hookContext: DefaultContext | undefined) => DefaultContext);
+            }
+            /** Mutation result returned from mutate(). */
+            interface MutateResult {
+                /** The mutation result data. */
+                data: object | undefined;
+                /** Error if mutation failed. */
+                error?: ErrorLike;
+                /** Custom extensions returned from the GraphQL server. */
+                extensions?: Record<string, unknown>;
+            }
+            /** {@inheritDoc @vue/apollo-composable!useMutation.Base.Result:interface} */
+            interface Result {
+                /** {@inheritDoc @vue/apollo-composable!useMutation.Base.Result#mutate:member} */
+                mutate: (options?: MutateOptions) => Promise<MutateResult>;
+                /** {@inheritDoc @vue/apollo-composable!useMutation.Base.Result#result:member} */
+                result: Ref<object | null | undefined>;
+                /** {@inheritDoc @vue/apollo-composable!useMutation.Base.Result#error:member} */
+                error: Ref<ErrorLike | undefined>;
+                /** {@inheritDoc @vue/apollo-composable!useMutation.Base.Result#loading:member} */
+                loading: Ref<boolean>;
+                /** {@inheritDoc @vue/apollo-composable!useMutation.Base.Result#called:member} */
+                called: Ref<boolean>;
+                /** {@inheritDoc @vue/apollo-composable!useMutation.Base.Result#reset:member} */
+                reset: () => void;
+                /** {@inheritDoc @vue/apollo-composable!useMutation.Base.Result#onDone:member} */
+                onDone: EventHookOn<MutateResult>;
+                /** {@inheritDoc @vue/apollo-composable!useMutation.Base.Result#onError:member} */
+                onError: EventHookOn<ErrorLike>;
+                /** {@inheritDoc @vue/apollo-composable!useMutation.Base.Result#document:member} */
+                document: Ref<DocumentNode>;
+                /** {@inheritDoc @vue/apollo-composable!useMutation.Base.Result#options:member} */
+                options: Ref<Options | undefined>;
+            }
+        }
+        /** {@inheritDoc @vue/apollo-composable!useMutation:function(1)} */
+        function useMutation(mutation: MaybeRefOrGetter<DocumentNode>, options?: MaybeRefOrGetter<useMutation.Options>): useMutation.Result;
+    }
+}
+/**
+ * A composable for executing GraphQL mutations.
+ *
+ * @param mutation - A GraphQL mutation document.
+ * @param options - Options to control how the mutation is executed.
+ * @returns Mutation result object with reactive refs and mutate function.
+ *
+ * @group Composables
+ *
+ * @example
+ * ```vue
+ * <script setup lang="ts">
+ * import { useMutation } from '@vue/apollo-composable'
+ * import gql from 'graphql-tag'
+ *
+ * const AddTodo = gql`mutation AddTodo($text: String!) { addTodo(text: $text) { id text } }`
+ *
+ * const { mutate, loading, error, onDone, onError } = useMutation(AddTodo)
+ *
+ * onDone((result) => {
+ *   console.log('Todo added:', result.data)
+ * })
+ *
+ * onError((error) => {
+ *   console.error('Failed:', error.message)
+ * })
+ *
+ * async function addTodo(text: string) {
+ *   await mutate({ variables: { text } })
+ * }
+ * </script>
+ *
+ * <template>
+ *   <button @click="addTodo('New task')" :disabled="loading">
+ *     {{ loading ? 'Adding...' : 'Add Todo' }}
+ *   </button>
+ *   <p v-if="error">Error: {{ error.message }}</p>
+ * </template>
+ * ```
+ */
+declare function useMutation<TData = unknown, TVariables extends OperationVariables = OperationVariables>(mutation: MaybeRefOrGetter<DocumentNode | TypedDocumentNode<TData, TVariables>>, options?: MaybeRefOrGetter<useMutation.Options<TData, TVariables>>): useMutation.Result<TData, TVariables>;
+
+declare namespace useSubscription {
+    import _self = useSubscription;
+    /**
+     * Type for the `variables` option parameter: either a ref/getter of the full variables object,
+     * or an object mapping individual variable names to refs/getters.
+     */
+    type ReactiveVariablesParameter<TVariables extends OperationVariables> = MaybeRefOrGetter<TVariables> | {
+        [Key in keyof TVariables]: MaybeRefOrGetter<TVariables[Key]>;
+    };
+    /** Makes `variables` required only when TVariables has required properties. */
+    type ReactiveVariablesOption<TVariables extends OperationVariables> = {} extends TVariables ? {
+        variables?: ReactiveVariablesParameter<TVariables>;
+    } : {
+        variables: ReactiveVariablesParameter<TVariables>;
+    };
+    namespace Base {
+        /** Options for useSubscription. */
+        interface Options<TData = unknown, TVariables extends OperationVariables = OperationVariables> {
+            /**
+             * How you want your component to interact with the Apollo cache.
+             *
+             * @group 3. Caching options
+             */
+            fetchPolicy?: FetchPolicy;
+            /**
+             * Specifies the `ErrorPolicy` to be used for this operation.
+             *
+             * @group 1. Operation options
+             */
+            errorPolicy?: ErrorPolicy;
+            /**
+             * Shared context between your component and your network interface (Apollo Link).
+             *
+             * @group 2. Networking options
+             */
+            context?: DefaultContext;
+            /**
+             * Extensions to be passed to the subscription.
+             *
+             * @group 2. Networking options
+             */
+            extensions?: Record<string, unknown>;
+            /**
+             * Determines if your subscription should be unsubscribed and subscribed again
+             * when an input to the hook (such as `subscription` or `variables`) changes.
+             *
+             * @default true
+             * @group 4. Vue-Apollo
+             */
+            shouldResubscribe?: boolean | ((options: _self.Options<TData, TVariables>) => boolean);
+            /**
+             * ID of a named Apollo client to use instead of the default.
+             *
+             * @group 4. Vue-Apollo
+             */
+            clientId?: string;
+            /**
+             * Reactive flag to enable/disable the subscription.
+             *
+             * @group 4. Vue-Apollo
+             */
+            enabled?: MaybeRefOrGetter<boolean>;
+            /**
+             * Throttle variable updates (ms).
+             *
+             * @group 4. Vue-Apollo
+             */
+            throttle?: number;
+            /**
+             * Debounce variable updates (ms).
+             *
+             * @group 4. Vue-Apollo
+             */
+            debounce?: number;
+        }
+        /** Result returned by useSubscription. */
+        interface Result<TData = unknown, TVariables extends OperationVariables = OperationVariables> {
+            /**
+             * An object containing the result of your GraphQL subscription.
+             * Defaults to `undefined`.
+             *
+             * @group 1. Operation data
+             */
+            result: Readonly<Ref<MaybeMasked<TData> | undefined>>;
+            /**
+             * A runtime error with `graphQLErrors` and `networkError` properties.
+             *
+             * @group 1. Operation data
+             */
+            error: Readonly<Ref<ErrorLike | undefined>>;
+            /**
+             * A boolean that indicates whether any initial data has been returned.
+             * `true` until the first subscription event is received.
+             *
+             * @group 2. Network info
+             */
+            loading: Readonly<Ref<boolean>>;
+            /**
+             * Start the subscription. Has no effect if already active or `enabled` is false.
+             *
+             * @group 3. Lifecycle
+             */
+            start: () => void;
+            /**
+             * Stop the subscription. Can be restarted by calling {@link start}.
+             *
+             * @group 3. Lifecycle
+             */
+            stop: () => void;
+            /**
+             * Disconnect and reconnect the subscription.
+             *
+             * @group 3. Lifecycle
+             */
+            restart: () => Promise<void>;
+            /**
+             * Event triggered when subscription data is received.
+             *
+             * @group 4. Events
+             */
+            onResult: EventHookOn<MaybeMasked<TData>>;
+            /**
+             * Event triggered when a subscription error occurs.
+             *
+             * @group 4. Events
+             */
+            onError: EventHookOn<ErrorLike>;
+            /**
+             * Event triggered when the subscription completes.
+             *
+             * @group 4. Events
+             */
+            onComplete: EventHookOn<void>;
+            /**
+             * The GraphQL document being subscribed to.
+             *
+             * @group 5. Refs
+             */
+            document: Readonly<Ref<DocumentNode>>;
+            /**
+             * Current variables being sent to the subscription (after debounce/throttle).
+             *
+             * @group 5. Refs
+             */
+            variables: Readonly<Ref<TVariables>>;
+            /**
+             * Current options.
+             *
+             * @group 5. Refs
+             */
+            options: Readonly<Ref<_self.Options<TData, TVariables> | undefined>>;
+        }
+    }
+    type Options<TData = unknown, TVariables extends OperationVariables = OperationVariables> = Base.Options<TData, TVariables> & ReactiveVariablesOption<TVariables>;
+    /** Options when subscription is explicitly disabled. Variables are optional. */
+    type DisabledOptions<TData = unknown, TVariables extends OperationVariables = OperationVariables> = Base.Options<TData, TVariables> & {
+        enabled: MaybeRefOrGetter<false>;
+        variables?: ReactiveVariablesParameter<TVariables>;
+    };
+    /** Options that can reactively switch between enabled and disabled. */
+    type MaybeDisabledOptions<TData = unknown, TVariables extends OperationVariables = OperationVariables> = Options<TData, TVariables> | DisabledOptions<TData, TVariables>;
+    /** {@inheritDoc @vue/apollo-composable!useSubscription.Base.Result:interface} */
+    interface Result<TData = unknown, TVariables extends OperationVariables = OperationVariables> extends Base.Result<TData, TVariables> {
+    }
+    namespace DocumentationTypes {
+        /** @group Composables Namespaces */
+        namespace useSubscription {
+            /** {@inheritDoc @vue/apollo-composable!useSubscription.ReactiveVariablesParameter:type} */
+            type ReactiveVariablesParameter = MaybeRefOrGetter<OperationVariables> | Record<string, MaybeRefOrGetter<unknown>>;
+            /** {@inheritDoc @vue/apollo-composable!useSubscription.Base.Options:interface} */
+            interface Options {
+                /** {@inheritDoc @vue/apollo-composable!useSubscription.Base.Options#fetchPolicy:member} */
+                fetchPolicy?: FetchPolicy;
+                /** {@inheritDoc @vue/apollo-composable!useSubscription.Base.Options#errorPolicy:member} */
+                errorPolicy?: ErrorPolicy;
+                /** {@inheritDoc @vue/apollo-composable!useSubscription.Base.Options#context:member} */
+                context?: DefaultContext;
+                /** {@inheritDoc @vue/apollo-composable!useSubscription.Base.Options#extensions:member} */
+                extensions?: Record<string, unknown>;
+                /** {@inheritDoc @vue/apollo-composable!useSubscription.Base.Options#shouldResubscribe:member} */
+                shouldResubscribe?: boolean | ((options: Options) => boolean);
+                /** {@inheritDoc @vue/apollo-composable!useSubscription.Base.Options#clientId:member} */
+                clientId?: string;
+                /** {@inheritDoc @vue/apollo-composable!useSubscription.Base.Options#enabled:member} */
+                enabled?: MaybeRefOrGetter<boolean>;
+                /** {@inheritDoc @vue/apollo-composable!useSubscription.Base.Options#throttle:member} */
+                throttle?: number;
+                /** {@inheritDoc @vue/apollo-composable!useSubscription.Base.Options#debounce:member} */
+                debounce?: number;
+                /**
+                 * An object containing all of the GraphQL variables your subscription requires to execute.
+                 *
+                 * @group 1. Operation options
+                 */
+                variables?: ReactiveVariablesParameter;
+            }
+            /** {@inheritDoc @vue/apollo-composable!useSubscription.Base.Result:interface} */
+            interface Result {
+                /** {@inheritDoc @vue/apollo-composable!useSubscription.Base.Result#result:member} */
+                result: Ref<object | undefined>;
+                /** {@inheritDoc @vue/apollo-composable!useSubscription.Base.Result#error:member} */
+                error: Ref<ErrorLike | undefined>;
+                /** {@inheritDoc @vue/apollo-composable!useSubscription.Base.Result#loading:member} */
+                loading: Ref<boolean>;
+                /** {@inheritDoc @vue/apollo-composable!useSubscription.Base.Result#start:member} */
+                start: () => void;
+                /** {@inheritDoc @vue/apollo-composable!useSubscription.Base.Result#stop:member} */
+                stop: () => void;
+                /** {@inheritDoc @vue/apollo-composable!useSubscription.Base.Result#restart:member} */
+                restart: () => Promise<void>;
+                /** {@inheritDoc @vue/apollo-composable!useSubscription.Base.Result#onResult:member} */
+                onResult: EventHookOn<object>;
+                /** {@inheritDoc @vue/apollo-composable!useSubscription.Base.Result#onError:member} */
+                onError: EventHookOn<ErrorLike>;
+                /** {@inheritDoc @vue/apollo-composable!useSubscription.Base.Result#onComplete:member} */
+                onComplete: EventHookOn<void>;
+                /** {@inheritDoc @vue/apollo-composable!useSubscription.Base.Result#document:member} */
+                document: Ref<DocumentNode>;
+                /** {@inheritDoc @vue/apollo-composable!useSubscription.Base.Result#variables:member} */
+                variables: Ref<OperationVariables>;
+                /** {@inheritDoc @vue/apollo-composable!useSubscription.Base.Result#options:member} */
+                options: Ref<Options | undefined>;
+            }
+        }
+        /** {@inheritDoc @vue/apollo-composable!useSubscription:function(1)} */
+        function useSubscription(subscription: MaybeRefOrGetter<DocumentNode>, options?: MaybeRefOrGetter<useSubscription.Options>): useSubscription.Result;
+    }
+}
+/**
+ * A composable for executing GraphQL subscriptions with full reactivity.
+ *
+ * @param subscription - A GraphQL subscription document.
+ * @param options - Options to control how the subscription is executed.
+ * @returns Subscription result object with reactive refs.
+ *
+ * @group Composables
+ *
+ * @example
+ * ```vue
+ * <script setup lang="ts">
+ * import { useSubscription } from '@vue/apollo-composable'
+ * import gql from 'graphql-tag'
+ *
+ * const OnMessage = gql`subscription OnMessage($channelId: ID!) {
+ *   newMessage(channelId: $channelId) { id text author }
+ * }`
+ *
+ * const { result, error, onResult, onError } = useSubscription(OnMessage, {
+ *   variables: { channelId: '1' }
+ * })
+ *
+ * onResult((data) => {
+ *   console.log('New message:', data)
+ * })
+ *
+ * onError((error) => {
+ *   console.error('Subscription error:', error.message)
+ * })
+ * </script>
+ *
+ * <template>
+ *   <div v-if="error">
+ *     Error: {{ error.message }}
+ *   </div>
+ *   <div v-else>
+ *     Last result: {{ result }}
+ *   </div>
+ * </template>
+ * ```
+ */
+declare function useSubscription<TData = unknown, TVariables extends OperationVariables = OperationVariables>(subscription: MaybeRefOrGetter<DocumentNode | TypedDocumentNode<TData, TVariables>>, options?: MaybeRefOrGetter<useSubscription.MaybeDisabledOptions<TData, TVariables>>): useSubscription.Result<TData, TVariables>;
+
+export { ApolloClients, DefaultApolloClient, provideApolloClient, provideApolloClients, useApolloClient, useFragment, useGlobalMutationLoading, useGlobalQueryLoading, useGlobalSubscriptionLoading, useLazyQuery, useMutation, useMutationLoading, useQuery, useQueryLoading, useSubscription, useSubscriptionLoading };
+export type { RenameKey };

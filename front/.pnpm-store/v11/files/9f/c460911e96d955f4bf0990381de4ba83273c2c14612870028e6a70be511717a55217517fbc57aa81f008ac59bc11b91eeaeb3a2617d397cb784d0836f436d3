@@ -1,0 +1,4 @@
+function generateOutfile(_type, _clientName, keyValuePairs) {
+    return `${keyValuePairs}`;
+}
+export default generateOutfile;

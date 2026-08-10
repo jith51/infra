@@ -1,0 +1,9 @@
+{
+  "operations": [
+    {
+      "name": "GetStuff",
+      "body": "query GetStuff {\n  stuff\n}",
+      "alias": "b8086942c2fbb6ac69b97cbade848033"
+    }
+  ]
+}

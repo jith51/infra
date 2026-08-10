@@ -1,0 +1,9 @@
+#import './portType.fragment.gql'
+
+mutation portTypeMutation(
+  $input: PortTypeInput!
+) {
+  portTypeMutation(input: $input) {
+    ...PortTypeFragment
+  }
+}

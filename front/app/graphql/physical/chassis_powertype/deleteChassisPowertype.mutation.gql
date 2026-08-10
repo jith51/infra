@@ -1,0 +1,6 @@
+mutation deleteChassisPowertype($id: ID!) {
+  deleteChassisPowertype(input: { id: $id}) {
+    deletedId
+    __typename
+  }
+}

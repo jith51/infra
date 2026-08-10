@@ -1,0 +1,6 @@
+#import './componentType.fragment.gql'
+query ComponentTypes {
+  componentTypes {
+    ...ComponentTypeFragment
+  }
+}

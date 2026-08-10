@@ -310,7 +310,7 @@ class LoadApicJob < ApplicationJob
               contractable_type: "Apic::Epg",
               contrat_id: new_contrats.find { |con| con.name == (c2["fvRsProv"]||c2["fvRsCons"])["attributes"]["tnVzBrCPName"] }.id
             } if c2["fvRsProv"]||c2["fvRsCons"]
-          })          
+          })         
 
         end
       end

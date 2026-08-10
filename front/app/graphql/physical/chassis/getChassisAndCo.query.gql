@@ -1,0 +1,40 @@
+#import './chassis.fragment.gql'
+query getChassis(
+  $nameOrId: String
+) {
+  getChassis (
+    nameOrId: $nameOrId
+  ) {
+      ...ChassisFragment
+  }
+  chassisClasses {
+    id
+    name
+  }
+  # interfaceTypes {
+  #     value
+  #     label
+  # }
+  # linkTypes {
+  #     value
+  #     label
+  # }
+  tags {
+      id
+      name
+  }
+  componentTypes {
+      id
+      name
+  }
+  portTypes {
+      id
+      name
+  }
+  # availablePorts (
+  #   chassisName: $name
+  # ) {
+  #     value
+  #     label
+  # } 
+}

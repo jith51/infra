@@ -1,0 +1,8 @@
+#import './chassisClass.fragment.gql'
+mutation chassisClass(
+  $input: ChassisClassInput!
+) {
+  chassisClass(input: $input) {
+    ...ChassisClassFragment
+  }
+}

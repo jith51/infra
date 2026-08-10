@@ -1,0 +1,60 @@
+"use strict";
+Object.defineProperty(exports, Symbol.toStringTag, { value: "Module" });
+const formCore = require("@tanstack/form-core");
+const vueStore = require("@tanstack/vue-store");
+const vue = require("vue");
+const useField = require("./useField.cjs");
+const useFormGroup = require("./useFormGroup.cjs");
+function useForm(opts) {
+  const formApi = (() => {
+    const api = new formCore.FormApi(opts);
+    const extendedApi = api;
+    extendedApi.Field = vue.defineComponent(
+      (props, context) => {
+        return () => vue.h(
+          useField.Field,
+          { ...props, ...context.attrs, form: api },
+          context.slots
+        );
+      },
+      {
+        name: "APIField",
+        inheritAttrs: false
+      }
+    );
+    extendedApi.FormGroup = vue.defineComponent(
+      (props, context) => {
+        return () => vue.h(
+          useFormGroup.FormGroup,
+          { ...props, ...context.attrs, form: api },
+          context.slots
+        );
+      },
+      {
+        name: "APIFormGroup",
+        inheritAttrs: false
+      }
+    );
+    extendedApi.useStore = (selector) => {
+      return vueStore.useStore(api.store, selector);
+    };
+    extendedApi.Subscribe = vue.defineComponent(
+      (props, context) => {
+        const allProps = { ...props, ...context.attrs };
+        const selector = allProps.selector ?? ((state) => state);
+        const data = vueStore.useStore(api.store, selector);
+        return () => context.slots.default(data.value);
+      },
+      {
+        name: "Subscribe",
+        inheritAttrs: false
+      }
+    );
+    return extendedApi;
+  })();
+  vue.onMounted(formApi.mount);
+  formApi.update(opts);
+  return formApi;
+}
+exports.useForm = useForm;
+//# sourceMappingURL=useForm.cjs.map

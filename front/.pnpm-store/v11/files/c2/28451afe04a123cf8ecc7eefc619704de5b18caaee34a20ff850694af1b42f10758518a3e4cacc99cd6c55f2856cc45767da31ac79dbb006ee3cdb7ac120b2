@@ -1,0 +1,58 @@
+import { ApolloLink, Observable } from "@apollo/client/core/index.js";
+import { print } from "graphql";
+import defaultChannelId from "./defaultChannelId.js";
+class ActionCableLink extends ApolloLink {
+    constructor(options) {
+        super();
+        this.cable = options.cable;
+        this.channelName = options.channelName || "GraphqlChannel";
+        this.actionName = options.actionName || "execute";
+        this.connectionParams = options.connectionParams || {};
+        this.callbacks = options.callbacks || {};
+        this.createChannelId = options.createChannelId || defaultChannelId;
+    }
+    // Interestingly, this link does _not_ call through to `next` because
+    // instead, it sends the request to ActionCable.
+    request(operation, _next) {
+        return new Observable((observer) => {
+            var channelId = this.createChannelId();
+            var actionName = this.actionName;
+            var connectionParams = (typeof this.connectionParams === "function") ?
+                this.connectionParams(operation) : this.connectionParams;
+            var callbacks = this.callbacks;
+            var channel = this.cable.subscriptions.create(Object.assign({}, {
+                channel: this.channelName,
+                channelId: channelId
+            }, connectionParams), {
+                connected: function (args) {
+                    var _a;
+                    this.perform(actionName, {
+                        query: operation.query ? print(operation.query) : null,
+                        variables: operation.variables,
+                        // This is added for persisted operation support:
+                        operationId: operation.operationId,
+                        operationName: operation.operationName
+                    });
+                    (_a = callbacks.connected) === null || _a === void 0 ? void 0 : _a.call(callbacks, args);
+                },
+                received: function (payload) {
+                    var _a, _b, _c;
+                    if (((_a = payload === null || payload === void 0 ? void 0 : payload.result) === null || _a === void 0 ? void 0 : _a.data) || ((_b = payload === null || payload === void 0 ? void 0 : payload.result) === null || _b === void 0 ? void 0 : _b.errors)) {
+                        observer.next(payload.result);
+                    }
+                    if (!payload.more) {
+                        observer.complete();
+                    }
+                    (_c = callbacks.received) === null || _c === void 0 ? void 0 : _c.call(callbacks, payload);
+                },
+                disconnected: function () {
+                    var _a;
+                    (_a = callbacks.disconnected) === null || _a === void 0 ? void 0 : _a.call(callbacks);
+                }
+            });
+            // Make the ActionCable subscription behave like an Apollo subscription
+            return Object.assign(channel, { closed: false });
+        });
+    }
+}
+export default ActionCableLink;

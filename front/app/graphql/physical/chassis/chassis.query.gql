@@ -1,0 +1,18 @@
+#import './chassis.fragment.gql'
+query chassis(
+  $limit: Int
+  $page: Int
+  $name: String
+  $tagIds: [String!]
+  $chassisClassIds: [String!]
+) {
+  chassis(
+    limit: $limit
+    page: $page
+    name: $name,
+    tagIds: $tagIds,
+    chassisClassIds: $chassisClassIds
+  ) {
+    ...ChassisFragment  
+  }
+}

@@ -1,15 +1,39 @@
 {
-  // https://v3.nuxtjs.org/concepts/typescript
+  // https://nuxt.com/docs/guide/concepts/typescript
+  "files": [],
   "extends": "./.nuxt/tsconfig.json",
-  "vueCompilerOptions": {
-    "plugins": []
-  },
-  "compilerOptions": { 
-    "strict": true,
-    "baseUrl": ".",
+  // "references": [
+  //   {
+  //     "path": "./.nuxt/tsconfig.app.json"
+  //   },
+  //   {
+  //     "path": "./.nuxt/tsconfig.server.json"
+  //   },
+  //   {
+  //     "path": "./.nuxt/tsconfig.shared.json"
+  //   },
+  //   {
+  //     "path": "./.nuxt/tsconfig.node.json"
+  //   }
+  // ],
+  "compilerOptions": {
     "paths": {
-      "@/*": ["./*"],
-    }, 
-    "moduleResolution": "Node"
-    }
+      "@/*": ["./app/*"]
+    },
+  }
 }
+// {
+//   // https://v3.nuxtjs.org/concepts/typescript
+//   "extends": "./.nuxt/tsconfig.json",
+//   "vueCompilerOptions": {
+//     "plugins": []
+//   },
+//   "compilerOptions": { 
+//     "strict": true,
+//     "baseUrl": ".",
+//     "paths": {
+//       "@/*": ["./*"],
+//     }, 
+//     "moduleResolution": "Node"
+//     }
+// }

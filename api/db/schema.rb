@@ -10,9 +10,37 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2025_03_20_080530) do
+ActiveRecord::Schema[8.1].define(version: 2026_08_07_132549) do
   # These are extensions that must be enabled in order to support this database
-  enable_extension "plpgsql"
+  enable_extension "pg_catalog.plpgsql"
+
+  create_table "active_storage_attachments", force: :cascade do |t|
+    t.bigint "blob_id", null: false
+    t.datetime "created_at", null: false
+    t.string "name", null: false
+    t.bigint "record_id", null: false
+    t.string "record_type", null: false
+    t.index ["blob_id"], name: "index_active_storage_attachments_on_blob_id"
+    t.index ["record_type", "record_id", "name", "blob_id"], name: "index_active_storage_attachments_uniqueness", unique: true
+  end
+
+  create_table "active_storage_blobs", force: :cascade do |t|
+    t.bigint "byte_size", null: false
+    t.string "checksum"
+    t.string "content_type"
+    t.datetime "created_at", null: false
+    t.string "filename", null: false
+    t.string "key", null: false
+    t.text "metadata"
+    t.string "service_name", null: false
+    t.index ["key"], name: "index_active_storage_blobs_on_key", unique: true
+  end
+
+  create_table "active_storage_variant_records", force: :cascade do |t|
+    t.bigint "blob_id", null: false
+    t.string "variation_digest", null: false
+    t.index ["blob_id", "variation_digest"], name: "index_active_storage_variant_records_uniqueness", unique: true
+  end
 
   create_table "apic_L3Out", force: :cascade do |t|
     t.string "name", null: false
@@ -22,8 +50,8 @@ ActiveRecord::Schema[7.1].define(version: 2025_03_20_080530) do
   end
 
   create_table "apic_L3Out_domaines", id: false, force: :cascade do |t|
-    t.bigint "apic_domaine_id", null: false
     t.bigint "apic_L3Out_id", null: false
+    t.bigint "apic_domaine_id", null: false
   end
 
   create_table "apic_application_profiles", force: :cascade do |t|
@@ -41,8 +69,8 @@ ActiveRecord::Schema[7.1].define(version: 2025_03_20_080530) do
   end
 
   create_table "apic_contexts_domaines", id: false, force: :cascade do |t|
-    t.bigint "apic_domaine_id", null: false
     t.bigint "apic_context_id", null: false
+    t.bigint "apic_domaine_id", null: false
   end
 
   create_table "apic_contrats", force: :cascade do |t|
@@ -58,8 +86,8 @@ ActiveRecord::Schema[7.1].define(version: 2025_03_20_080530) do
   end
 
   create_table "apic_domaine_attributs_epgs", id: false, force: :cascade do |t|
-    t.bigint "apic_epg_id", null: false
     t.bigint "apic_domaine_attribut_id", null: false
+    t.bigint "apic_epg_id", null: false
   end
 
   create_table "apic_domaines", force: :cascade do |t|
@@ -70,9 +98,9 @@ ActiveRecord::Schema[7.1].define(version: 2025_03_20_080530) do
   end
 
   create_table "apic_epgs", force: :cascade do |t|
-    t.string "name", null: false
     t.bigint "application_profile_id", null: false
     t.bigint "domaine_id", null: false
+    t.string "name", null: false
     t.index ["application_profile_id"], name: "index_apic_epgs_on_application_profile_id"
     t.index ["domaine_id"], name: "index_apic_epgs_on_domaine_id"
     t.index ["name"], name: "index_apic_epgs_on_name"
@@ -89,17 +117,17 @@ ActiveRecord::Schema[7.1].define(version: 2025_03_20_080530) do
   end
 
   create_table "apic_serveurs", force: :cascade do |t|
-    t.string "name", null: false
     t.integer "epg_id", null: false
-    t.integer "powerstate"
+    t.string "name", null: false
     t.string "os"
+    t.integer "powerstate"
     t.index ["epg_id"], name: "index_apic_serveurs_on_epg_id"
     t.index ["name"], name: "index_apic_serveurs_on_name"
   end
 
   create_table "apic_subnets", force: :cascade do |t|
-    t.string "name", null: false
     t.bigint "domaine_id", null: false
+    t.string "name", null: false
     t.index ["domaine_id"], name: "index_apic_subnets_on_domaine_id"
     t.index ["name"], name: "index_apic_subnets_on_name"
   end
@@ -114,19 +142,19 @@ ActiveRecord::Schema[7.1].define(version: 2025_03_20_080530) do
   end
 
   create_table "apic_used_contrats", force: :cascade do |t|
-    t.string "type"
-    t.bigint "contrat_id", null: false
-    t.string "contractable_type"
     t.bigint "contractable_id"
+    t.string "contractable_type"
+    t.bigint "contrat_id", null: false
+    t.string "type"
     t.index ["contractable_type", "contractable_id"], name: "index_apic_used_contrats_on_contractable"
     t.index ["contrat_id"], name: "index_apic_used_contrats_on_contrat_id"
     t.index ["type"], name: "index_apic_used_contrats_on_type"
   end
 
   create_table "apic_used_filters", force: :cascade do |t|
+    t.bigint "contrat_id", null: false
     t.string "type"
     t.bigint "vzFilter_id", null: false
-    t.bigint "contrat_id", null: false
     t.index ["contrat_id"], name: "index_apic_used_filters_on_contrat_id"
     t.index ["type"], name: "index_apic_used_filters_on_type"
     t.index ["vzFilter_id"], name: "index_apic_used_filters_on_vzFilter_id"
@@ -171,19 +199,19 @@ ActiveRecord::Schema[7.1].define(version: 2025_03_20_080530) do
 
   create_table "dna_devices", force: :cascade do |t|
     t.string "description"
-    t.string "software_version"
-    t.string "mac_address"
-    t.string "serial_number"
-    t.string "hostname"
-    t.string "management_ip"
-    t.string "location"
-    t.string "uuid"
     t.bigint "device_family_id"
     t.bigint "device_platform_id_id"
-    t.bigint "device_software_type_id"
-    t.bigint "device_series_id"
-    t.bigint "device_type_id"
     t.bigint "device_role_id"
+    t.bigint "device_series_id"
+    t.bigint "device_software_type_id"
+    t.bigint "device_type_id"
+    t.string "hostname"
+    t.string "location"
+    t.string "mac_address"
+    t.string "management_ip"
+    t.string "serial_number"
+    t.string "software_version"
+    t.string "uuid"
     t.index ["device_family_id"], name: "index_dna_devices_on_device_family_id"
     t.index ["device_platform_id_id"], name: "index_dna_devices_on_device_platform_id_id"
     t.index ["device_role_id"], name: "index_dna_devices_on_device_role_id"
@@ -202,12 +230,12 @@ ActiveRecord::Schema[7.1].define(version: 2025_03_20_080530) do
   end
 
   create_table "dna_eol_bulletins", force: :cascade do |t|
-    t.string "number"
-    t.string "name"
-    t.string "eol_type"
-    t.string "url"
     t.date "end_of_life_date"
+    t.string "eol_type"
     t.date "last_date_of_support"
+    t.string "name"
+    t.string "number"
+    t.string "url"
     t.index ["eol_type", "number"], name: "index_dna_eol_bulletins_on_eol_type_and_number", unique: true
   end
 
@@ -217,14 +245,14 @@ ActiveRecord::Schema[7.1].define(version: 2025_03_20_080530) do
   end
 
   create_table "dna_equipements", force: :cascade do |t|
-    t.string "name"
     t.string "description"
+    t.bigint "equipement_type_id"
+    t.bigint "host_id", null: false
+    t.string "host_type", null: false
+    t.string "name"
+    t.bigint "product_id_id"
     t.string "serial_number"
     t.string "uuid"
-    t.bigint "product_id_id"
-    t.bigint "equipement_type_id"
-    t.string "host_type", null: false
-    t.bigint "host_id", null: false
     t.index ["equipement_type_id"], name: "index_dna_equipements_on_equipement_type_id"
     t.index ["host_type", "host_id"], name: "index_dna_equipements_on_host"
     t.index ["product_id_id"], name: "index_dna_equipements_on_product_id_id"
@@ -242,19 +270,139 @@ ActiveRecord::Schema[7.1].define(version: 2025_03_20_080530) do
   end
 
   create_table "dna_switches", force: :cascade do |t|
-    t.string "uuid"
     t.string "description"
-    t.string "mac_address"
-    t.string "serial_number"
-    t.string "role"
-    t.string "stack_member_number"
-    t.string "software_image"
-    t.bigint "switch_platform_id_id"
-    t.bigint "equipement_type_id"
     t.bigint "device_id"
+    t.bigint "equipement_type_id"
+    t.string "mac_address"
+    t.string "role"
+    t.string "serial_number"
+    t.string "software_image"
+    t.string "stack_member_number"
+    t.bigint "switch_platform_id_id"
+    t.string "uuid"
     t.index ["device_id"], name: "index_dna_switches_on_device_id"
     t.index ["equipement_type_id"], name: "index_dna_switches_on_equipement_type_id"
     t.index ["switch_platform_id_id"], name: "index_dna_switches_on_switch_platform_id_id"
   end
 
+  create_table "physical_chassis", force: :cascade do |t|
+    t.bigint "chassis_class_id", null: false
+    t.datetime "created_at", null: false
+    t.jsonb "custom_attributes", default: {}
+    t.string "name", null: false
+    t.string "serial_number"
+    t.datetime "updated_at", null: false
+    t.index ["chassis_class_id"], name: "index_physical_chassis_on_chassis_class_id"
+    t.index ["name"], name: "index_physical_chassis_on_name", unique: true
+  end
+
+  create_table "physical_chassis_classes", force: :cascade do |t|
+    t.bigint "chassis_powertype_id"
+    t.datetime "created_at", null: false
+    t.jsonb "custom_attributes", default: {}
+    t.jsonb "custom_attributes_definition", default: {}
+    t.string "fournisseur"
+    t.integer "height"
+    t.string "model"
+    t.string "name", null: false
+    t.string "part_number"
+    t.datetime "updated_at", null: false
+    t.string "url_link"
+    t.string "vendor_equipment_type"
+    t.string "version"
+    t.index ["chassis_powertype_id"], name: "index_physical_chassis_classes_on_chassis_powertype_id"
+    t.index ["name"], name: "index_physical_chassis_classes_on_name", unique: true
+  end
+
+  create_table "physical_component_types", force: :cascade do |t|
+    t.string "name", null: false
+    t.index ["name"], name: "index_physical_component_types_on_name"
+  end
+
+  create_table "physical_components", force: :cascade do |t|
+    t.bigint "component_type_id"
+    t.string "description"
+    t.bigint "host_id"
+    t.string "host_type"
+    t.string "name", null: false
+    t.string "serial_number"
+    t.index ["component_type_id"], name: "index_physical_components_on_component_type_id"
+    t.index ["host_type", "host_id"], name: "index_physical_components_on_host"
+    t.index ["name"], name: "index_physical_components_on_name"
+  end
+
+  create_table "physical_connections", force: :cascade do |t|
+    t.integer "distant_id", null: false
+    t.bigint "link_type_id"
+    t.integer "local_id", null: false
+    t.index ["link_type_id"], name: "index_physical_connections_on_link_type_id"
+  end
+
+  create_table "physical_interface_types", force: :cascade do |t|
+    t.string "name", null: false
+    t.index ["name"], name: "index_physical_interface_types_on_name"
+  end
+
+  create_table "physical_link_types", force: :cascade do |t|
+    t.string "name", null: false
+    t.index ["name"], name: "index_physical_link_types_on_name"
+  end
+
+  create_table "physical_port_types", force: :cascade do |t|
+    t.string "name", null: false
+    t.index ["name"], name: "index_physical_port_types_on_name"
+  end
+
+  create_table "physical_ports", force: :cascade do |t|
+    t.string "description"
+    t.bigint "host_id"
+    t.string "host_type"
+    t.string "mac_address"
+    t.string "name", null: false
+    t.bigint "port_type_id"
+    t.index ["host_type", "host_id"], name: "index_physical_ports_on_host"
+    t.index ["name"], name: "index_physical_ports_on_name"
+    t.index ["port_type_id"], name: "index_physical_ports_on_port_type_id"
+  end
+
+  create_table "physical_powertypes", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.jsonb "custom_attributes", default: {}
+    t.string "name"
+    t.integer "parent_id"
+    t.string "type"
+    t.datetime "updated_at", null: false
+  end
+
+  create_table "powertype_hierarchies", id: false, force: :cascade do |t|
+    t.integer "ancestor_id", null: false
+    t.integer "descendant_id", null: false
+    t.integer "generations", null: false
+    t.index ["ancestor_id", "descendant_id", "generations"], name: "powertype_anc_desc_idx", unique: true
+    t.index ["descendant_id"], name: "powertype_desc_idx"
+  end
+
+  create_table "powertypes", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.jsonb "custom_attributes", default: {}
+    t.string "name"
+    t.integer "parent_id"
+    t.string "type"
+    t.datetime "updated_at", null: false
+  end
+
+  create_table "tags", force: :cascade do |t|
+    t.string "name"
+  end
+
+  create_table "tags_attachments", id: false, force: :cascade do |t|
+    t.bigint "tag_id"
+    t.bigint "taggable_id"
+    t.string "taggable_type"
+    t.index ["tag_id"], name: "index_tags_attachments_on_tag_id"
+    t.index ["taggable_type", "taggable_id"], name: "index_tags_attachments_on_taggable"
+  end
+
+  add_foreign_key "active_storage_attachments", "active_storage_blobs", column: "blob_id"
+  add_foreign_key "active_storage_variant_records", "active_storage_blobs", column: "blob_id"
 end

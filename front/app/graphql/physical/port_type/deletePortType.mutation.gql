@@ -1,0 +1,5 @@
+mutation deletePortType($id: ID!) {
+  deletePortType(input: { id: $id}) {
+    deletedId
+  }
+}

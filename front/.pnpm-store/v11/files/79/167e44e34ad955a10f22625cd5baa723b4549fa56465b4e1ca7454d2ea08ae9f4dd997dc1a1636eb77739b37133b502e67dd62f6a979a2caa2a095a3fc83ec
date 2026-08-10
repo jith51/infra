@@ -1,0 +1,897 @@
+'use strict';
+
+const runtimeCore = require('@vue/runtime-core');
+const reactivity = require('@vue/reactivity');
+const core = require('@vueuse/core');
+const client = require('@apollo/client');
+const equality = require('@wry/equality');
+
+let currentApolloClients = {};
+const DefaultApolloClient = Symbol("default-apollo-client");
+const ApolloClients = Symbol("apollo-clients");
+function resolveDefaultClient(providedApolloClients, providedApolloClient) {
+  const resolvedClient = providedApolloClients ? providedApolloClients.default : providedApolloClient ?? void 0;
+  return resolvedClient;
+}
+function resolveClientWithId(providedApolloClients, clientId) {
+  return providedApolloClients?.[clientId];
+}
+function useApolloClient(clientId) {
+  let resolveImpl;
+  const savedCurrentClients = currentApolloClients;
+  if (!runtimeCore.hasInjectionContext()) {
+    resolveImpl = (id) => {
+      if (id) {
+        return resolveClientWithId(savedCurrentClients, id);
+      }
+      return resolveDefaultClient(savedCurrentClients, savedCurrentClients.default);
+    };
+  } else {
+    const providedApolloClients = runtimeCore.inject(ApolloClients, null);
+    const providedApolloClient = runtimeCore.inject(DefaultApolloClient, null);
+    resolveImpl = (id) => {
+      if (id) {
+        const client2 = resolveClientWithId(providedApolloClients, id);
+        if (client2) {
+          return client2;
+        }
+        return resolveClientWithId(savedCurrentClients, id);
+      }
+      const client = resolveDefaultClient(providedApolloClients, providedApolloClient);
+      if (client) {
+        return client;
+      }
+      return resolveDefaultClient(savedCurrentClients, savedCurrentClients.default);
+    };
+  }
+  function resolveClient(id = clientId) {
+    const client = resolveImpl(id);
+    if (!client) {
+      throw new Error(
+        `Apollo client with id ${id ?? "default"} not found. Use an app.runWithContext() or provideApolloClient() if you are outside of a component setup.`
+      );
+    }
+    return client;
+  }
+  return {
+    resolveClient,
+    get client() {
+      return resolveClient();
+    }
+  };
+}
+function provideApolloClient(client) {
+  currentApolloClients = {
+    default: client
+  };
+  return function(fn) {
+    const result = fn();
+    currentApolloClients = {};
+    return result;
+  };
+}
+function provideApolloClients(clients) {
+  currentApolloClients = clients;
+  return function(fn) {
+    const result = fn();
+    currentApolloClients = {};
+    return result;
+  };
+}
+
+function toCurrent$1(watchResult) {
+  if (watchResult == null) {
+    return void 0;
+  }
+  const { data, dataState, ...rest } = watchResult;
+  return { result: data, resultState: dataState, ...rest };
+}
+function resolveFromToId(from, cache) {
+  if (from == null)
+    return null;
+  if (typeof from === "string")
+    return from;
+  return cache.identify(from) ?? null;
+}
+const nullResult = Object.freeze({
+  result: {},
+  resultState: "partial",
+  complete: false
+});
+const nullArrayResult = Object.freeze({
+  result: [],
+  resultState: "partial",
+  complete: false
+});
+function useFragmentImpl(sourceOptions) {
+  const options = reactivity.toRef(sourceOptions);
+  const { resolveClient } = useApolloClient();
+  function getClient() {
+    return resolveClient(options.value?.clientId);
+  }
+  const from = reactivity.computed(() => reactivity.toValue(options.value.from));
+  const fragment = reactivity.computed(() => reactivity.toValue(options.value.fragment));
+  const fragmentName = reactivity.computed(() => reactivity.toValue(options.value.fragmentName));
+  const variables = reactivity.computed(() => {
+    const vars = reactivity.toValue(options.value?.variables);
+    if (vars == null)
+      return void 0;
+    const result2 = {};
+    for (const [key, value] of Object.entries(vars)) {
+      result2[key] = reactivity.toValue(value);
+    }
+    return result2;
+  });
+  const cacheIds = reactivity.computed(() => {
+    const { cache } = getClient();
+    const fromValue = from.value;
+    return Array.isArray(fromValue) ? fromValue.map((item) => resolveFromToId(item, cache)) : resolveFromToId(fromValue, cache);
+  });
+  const watchFragmentOptions = reactivity.computed(() => ({
+    fragment: fragment.value,
+    from: cacheIds.value,
+    // Apollo handles both single ID and array of IDs
+    optimistic: options.value.optimistic ?? true,
+    ...fragmentName.value != null && { fragmentName: fragmentName.value },
+    ...variables.value != null && { variables: variables.value }
+  }));
+  const observable = reactivity.computed(
+    () => from.value == null ? void 0 : getClient().watchFragment(watchFragmentOptions.value)
+  );
+  const initialResult = observable.value?.getCurrentResult();
+  const subscription = reactivity.shallowRef();
+  const currentState = reactivity.shallowRef(toCurrent$1(initialResult) ?? (Array.isArray(from.value) ? nullArrayResult : nullResult));
+  const nextStateEvent = core.createEventHook();
+  nextStateEvent.on(((newState) => {
+    currentState.value = newState;
+  }));
+  runtimeCore.watch(observable, (newObservable) => {
+    subscription.value?.unsubscribe();
+    subscription.value = void 0;
+    if (newObservable) {
+      const initialResult2 = newObservable.getCurrentResult?.();
+      if (initialResult2) {
+        currentState.value = toCurrent$1(initialResult2);
+      }
+      subscription.value = newObservable.subscribe({
+        next: (watchResult) => {
+          nextStateEvent.trigger(toCurrent$1(watchResult));
+        }
+      });
+    }
+  }, { immediate: true });
+  reactivity.onScopeDispose(() => {
+    subscription.value?.unsubscribe();
+  });
+  const result = reactivity.computed(() => currentState.value?.result);
+  const resultState = reactivity.computed(() => currentState.value?.resultState);
+  const complete = reactivity.computed(() => currentState.value?.complete ?? false);
+  const missing = reactivity.computed(
+    () => currentState.value && "missing" in currentState.value ? currentState.value.missing : void 0
+  );
+  return {
+    current: currentState,
+    result,
+    resultState,
+    complete,
+    missing,
+    onNextState: nextStateEvent.on
+  };
+}
+function useFragment(options) {
+  return useFragmentImpl(options);
+}
+
+const globalTracking = {
+  queries: reactivity.ref(0),
+  mutations: reactivity.ref(0),
+  subscriptions: reactivity.ref(0),
+  components: /* @__PURE__ */ new Map()
+};
+const isServer = typeof window === "undefined";
+function getCurrentTracking() {
+  const currentScope = reactivity.getCurrentScope();
+  if (!currentScope) {
+    return {};
+  }
+  let tracking;
+  if (isServer) {
+    tracking = {
+      queries: reactivity.ref(0),
+      mutations: reactivity.ref(0),
+      subscriptions: reactivity.ref(0)
+    };
+    return { tracking };
+  }
+  if (!globalTracking.components.has(currentScope)) {
+    tracking = {
+      queries: reactivity.ref(0),
+      mutations: reactivity.ref(0),
+      subscriptions: reactivity.ref(0)
+    };
+    globalTracking.components.set(currentScope, tracking);
+    reactivity.onScopeDispose(() => {
+      globalTracking.components.delete(currentScope);
+    });
+  } else {
+    tracking = globalTracking.components.get(currentScope);
+  }
+  return { tracking };
+}
+function track(loading, type) {
+  if (isServer)
+    return;
+  const { tracking } = getCurrentTracking();
+  runtimeCore.watch(loading, (value, oldValue) => {
+    if (oldValue != null && value !== oldValue) {
+      const mod = value ? 1 : -1;
+      if (tracking) {
+        tracking[type].value += mod;
+      }
+      globalTracking[type].value += mod;
+    }
+  }, { immediate: true });
+  reactivity.onScopeDispose(() => {
+    if (loading.value) {
+      if (tracking) {
+        tracking[type].value--;
+      }
+      globalTracking[type].value--;
+    }
+  });
+}
+function trackQuery(loading) {
+  track(loading, "queries");
+}
+function trackMutation(loading) {
+  track(loading, "mutations");
+}
+function trackSubscription(loading) {
+  track(loading, "subscriptions");
+}
+
+function shouldReobserve(previousOptions, options) {
+  return previousOptions.query !== options.query || !equality.equal(previousOptions.variables, options.variables) || previousOptions.fetchPolicy !== options.fetchPolicy && (options.fetchPolicy === "standby" || previousOptions.fetchPolicy === "standby");
+}
+function toCurrent(result) {
+  const { data, dataState, ...rest } = result;
+  return {
+    result: data,
+    resultState: dataState,
+    ...rest
+  };
+}
+function toFetchMoreResult(result) {
+  const { data, ...rest } = result;
+  return { result: data, ...rest };
+}
+function useQueryImpl(sourceDocument, sourceOptions, lazy = false) {
+  const document = reactivity.toRef(sourceDocument);
+  const options = reactivity.toRef(sourceOptions);
+  const watchQueryOptions = reactivity.computed(() => {
+    const {
+      fetchPolicy,
+      nextFetchPolicy,
+      initialFetchPolicy,
+      refetchWritePolicy,
+      errorPolicy,
+      context,
+      pollInterval,
+      notifyOnNetworkStatusChange,
+      returnPartialData,
+      skipPollAttempt
+    } = options.value ?? {};
+    return {
+      fetchPolicy,
+      nextFetchPolicy,
+      initialFetchPolicy,
+      refetchWritePolicy,
+      errorPolicy,
+      context,
+      pollInterval,
+      notifyOnNetworkStatusChange,
+      returnPartialData,
+      skipPollAttempt
+    };
+  });
+  const vueApolloQueryOptions = reactivity.computed(() => {
+    const {
+      clientId,
+      enabled,
+      throttle,
+      debounce,
+      prefetch,
+      keepPreviousResult
+    } = options.value ?? {};
+    return {
+      clientId,
+      enabled,
+      throttle,
+      debounce,
+      prefetch,
+      keepPreviousResult
+    };
+  });
+  const { resolveClient } = useApolloClient();
+  function getClient() {
+    return resolveClient(vueApolloQueryOptions.value?.clientId);
+  }
+  const forceDisabled = reactivity.ref(lazy);
+  const enabledOption = reactivity.computed(() => reactivity.toValue(vueApolloQueryOptions.value?.enabled) ?? true);
+  const isEnabled = reactivity.computed(() => enabledOption.value && !forceDisabled.value && !!document.value);
+  const variables = reactivity.computed(() => {
+    const vars = reactivity.toValue(options.value?.variables);
+    if (vars == null) {
+      return {};
+    }
+    const result2 = {};
+    for (const [key, value] of Object.entries(vars)) {
+      result2[key] = reactivity.toValue(value);
+    }
+    return result2;
+  });
+  const currentVariables = reactivity.shallowRef(variables.value);
+  const setDebouncedVariables = core.useDebounceFn((newVariables) => {
+    currentVariables.value = newVariables;
+  }, () => vueApolloQueryOptions.value.debounce ?? 0);
+  const setThrottledVariables = core.useThrottleFn(
+    (newVariables) => {
+      currentVariables.value = newVariables;
+    },
+    () => vueApolloQueryOptions.value.throttle ?? 0,
+    true
+    // trailing edge
+  );
+  runtimeCore.watch(variables, (newVariables) => {
+    if (vueApolloQueryOptions.value.debounce != null) {
+      setDebouncedVariables(newVariables);
+    } else if (vueApolloQueryOptions.value.throttle != null) {
+      setThrottledVariables(newVariables);
+    } else {
+      currentVariables.value = newVariables;
+    }
+  }, { flush: "sync" });
+  const currentScope = reactivity.getCurrentScope();
+  const currentInstance = runtimeCore.getCurrentInstance();
+  const observableQuery = reactivity.shallowRef();
+  const subscription = reactivity.shallowRef();
+  const currentState = reactivity.shallowRef({
+    result: void 0,
+    loading: false,
+    networkStatus: client.NetworkStatus.ready,
+    resultState: "empty",
+    partial: false
+  });
+  const result = reactivity.computed(() => currentState.value.result);
+  const loading = reactivity.computed(() => currentState.value.loading);
+  const networkStatus = reactivity.computed(() => currentState.value.networkStatus);
+  const error = reactivity.computed(() => currentState.value.error);
+  if (currentScope)
+    trackQuery(loading);
+  const nextStateEvent = core.createEventHook();
+  const resultEvent = core.createEventHook();
+  const completeResultEvent = core.createEventHook();
+  const partialResultEvent = core.createEventHook();
+  const streamingResultEvent = core.createEventHook();
+  const errorEvent = core.createEventHook();
+  nextStateEvent.on((newState) => {
+    if (newState.resultState === "empty" && vueApolloQueryOptions.value.keepPreviousResult && currentState.value.result != null) {
+      currentState.value = {
+        ...newState,
+        result: currentState.value.result
+      };
+    } else {
+      currentState.value = newState;
+    }
+    if (newState.error) {
+      errorEvent.trigger(newState.error);
+    }
+    if (newState.resultState === "complete") {
+      completeResultEvent.trigger(newState.result);
+      resultEvent.trigger(newState.result);
+    } else if (newState.resultState === "partial") {
+      partialResultEvent.trigger(newState.result);
+      resultEvent.trigger(newState.result);
+    } else if (newState.resultState === "streaming") {
+      streamingResultEvent.trigger(newState.result);
+      resultEvent.trigger(newState.result);
+    }
+  });
+  const apolloWatchQueryOptions = reactivity.computed(() => ({
+    query: document.value,
+    variables: currentVariables.value,
+    ...watchQueryOptions.value
+  }));
+  runtimeCore.watch(
+    observableQuery,
+    (newObservableQuery, oldObservableQuery) => {
+      if (oldObservableQuery) {
+        oldObservableQuery.stop();
+        subscription.value = void 0;
+      }
+      if (newObservableQuery) {
+        currentState.value = toCurrent(newObservableQuery.getCurrentResult());
+        subscription.value = newObservableQuery.subscribe((newState) => {
+          nextStateEvent.trigger(toCurrent(newState));
+        });
+      }
+    },
+    { flush: "sync" }
+  );
+  runtimeCore.watch(isEnabled, (newIsEnabled) => {
+    if (newIsEnabled) {
+      const client = getClient();
+      observableQuery.value = client.watchQuery(apolloWatchQueryOptions.value);
+    } else {
+      observableQuery.value = void 0;
+    }
+  }, { immediate: true, flush: "sync" });
+  runtimeCore.watch(apolloWatchQueryOptions, (newOptions, oldOptions) => {
+    if (observableQuery.value == null) {
+      return;
+    }
+    if (shouldReobserve(
+      oldOptions,
+      newOptions
+    )) {
+      observableQuery.value?.reobserve(newOptions);
+    } else {
+      observableQuery.value?.applyOptions(newOptions);
+    }
+    const newCurrent = toCurrent(observableQuery.value.getCurrentResult());
+    if (newCurrent.resultState === "empty" && !vueApolloQueryOptions.value.keepPreviousResult) {
+      currentState.value = newCurrent;
+    }
+  });
+  if (currentScope) {
+    reactivity.onScopeDispose(() => {
+      subscription.value?.unsubscribe();
+      observableQuery.value?.stop();
+    });
+  } else {
+    console.warn("[Vue apollo] useQuery() is called outside of an active effect scope and the query will not be automatically stopped.");
+  }
+  function start() {
+    forceDisabled.value = false;
+  }
+  function stop() {
+    forceDisabled.value = true;
+  }
+  async function restart() {
+    if (!isEnabled.value) {
+      return;
+    }
+    forceDisabled.value = true;
+    await runtimeCore.nextTick();
+    forceDisabled.value = false;
+  }
+  async function refetch(variables2) {
+    const res = await observableQuery.value?.refetch(variables2);
+    if (res == null)
+      return void 0;
+    const { data, ...rest } = res;
+    return {
+      result: data,
+      ...rest
+    };
+  }
+  function fetchMore(options2) {
+    return observableQuery.value?.fetchMore(options2).then(toFetchMoreResult);
+  }
+  function updateQuery(mapFn) {
+    observableQuery.value?.updateQuery(mapFn);
+  }
+  function subscribeToMore(options2) {
+    return observableQuery.value?.subscribeToMore(options2);
+  }
+  const response = {
+    current: currentState,
+    result,
+    loading,
+    networkStatus,
+    error,
+    document,
+    variables: currentVariables,
+    options,
+    query: observableQuery,
+    start,
+    stop,
+    restart,
+    refetch,
+    fetchMore,
+    updateQuery,
+    subscribeToMore,
+    onNextState: nextStateEvent.on,
+    onResult: resultEvent.on,
+    onCompleteResult: completeResultEvent.on,
+    onPartialResult: partialResultEvent.on,
+    onStreamingResult: streamingResultEvent.on,
+    onError: errorEvent.on
+  };
+  function then(onfulfilled, onrejected) {
+    if (vueApolloQueryOptions.value.awaitComplete ? currentState.value.resultState === "complete" : currentState.value.resultState !== "empty") {
+      if (error.value) {
+        return Promise.reject(error.value).then(onfulfilled, onrejected);
+      }
+      return Promise.resolve(response).then(onfulfilled, onrejected);
+    }
+    return new Promise((resolve, reject) => {
+      const stopWatch = runtimeCore.watch(
+        currentState,
+        (newState) => {
+          if (vueApolloQueryOptions.value.awaitComplete ? newState.resultState === "complete" : newState.resultState !== "empty") {
+            stopWatch();
+            if (newState.error) {
+              reject(newState.error);
+            } else {
+              resolve(response);
+            }
+          }
+        },
+        { flush: "sync" }
+      );
+    }).then(onfulfilled, onrejected);
+  }
+  if (currentInstance) {
+    runtimeCore.onServerPrefetch(() => {
+      if ((vueApolloQueryOptions.value.prefetch ?? true) && isEnabled.value) {
+        return { then };
+      }
+      return Promise.resolve();
+    });
+  }
+  return {
+    then,
+    ...response
+  };
+}
+function useQuery(query, options) {
+  return useQueryImpl(query, options);
+}
+
+function useLazyQuery(query, options) {
+  const queryResult = useQueryImpl(query, options, true);
+  const variablesRef = queryResult.variables;
+  async function load(variables) {
+    if (variables != null) {
+      variablesRef.value = { ...variablesRef.value, ...variables };
+    }
+    queryResult.start();
+    await core.until(
+      () => queryResult.current.value.resultState === "complete" || queryResult.current.value.error != null
+    ).toBe(true, { timeout: 3e4 });
+    if (queryResult.error.value) {
+      throw queryResult.error.value;
+    }
+    return queryResult.result.value;
+  }
+  return {
+    ...queryResult,
+    load
+  };
+}
+
+function useQueryLoading() {
+  const { tracking } = getCurrentTracking();
+  if (!tracking) {
+    throw new Error("useQueryLoading must be called inside a setup function.");
+  }
+  return reactivity.computed(() => tracking.queries.value > 0);
+}
+function useMutationLoading() {
+  const { tracking } = getCurrentTracking();
+  if (!tracking) {
+    throw new Error("useMutationLoading must be called inside a setup function.");
+  }
+  return reactivity.computed(() => tracking.mutations.value > 0);
+}
+function useSubscriptionLoading() {
+  const { tracking } = getCurrentTracking();
+  if (!tracking) {
+    throw new Error("useSubscriptionLoading must be called inside a setup function.");
+  }
+  return reactivity.computed(() => tracking.subscriptions.value > 0);
+}
+function useGlobalQueryLoading() {
+  return reactivity.computed(() => globalTracking.queries.value > 0);
+}
+function useGlobalMutationLoading() {
+  return reactivity.computed(() => globalTracking.mutations.value > 0);
+}
+function useGlobalSubscriptionLoading() {
+  return reactivity.computed(() => globalTracking.subscriptions.value > 0);
+}
+
+function useMutation(mutation, options) {
+  const currentScope = reactivity.getCurrentScope();
+  const document = reactivity.toRef(mutation);
+  const hookOptions = reactivity.toRef(options);
+  const { resolveClient } = useApolloClient();
+  function getClient() {
+    return resolveClient(hookOptions.value?.clientId);
+  }
+  const variables = reactivity.computed(() => {
+    const vars = reactivity.toValue(hookOptions.value?.variables);
+    if (vars == null) {
+      return void 0;
+    }
+    const result2 = {};
+    for (const [key, value] of Object.entries(vars)) {
+      result2[key] = reactivity.toValue(value);
+    }
+    return result2;
+  });
+  const result = reactivity.shallowRef(void 0);
+  const error = reactivity.shallowRef(void 0);
+  const loading = reactivity.ref(false);
+  const called = reactivity.ref(false);
+  let mutationId = 0;
+  trackMutation(loading);
+  const doneEvent = core.createEventHook();
+  const errorEvent = core.createEventHook();
+  let errorListenerCount = 0;
+  function onError(fn) {
+    errorListenerCount++;
+    const { off } = errorEvent.on(fn);
+    return {
+      off: () => {
+        errorListenerCount--;
+        off();
+      }
+    };
+  }
+  function hasErrorListeners() {
+    return errorListenerCount > 0;
+  }
+  async function mutate(executeOptions) {
+    const client = getClient();
+    const currentMutationId = ++mutationId;
+    const currentHookOptions = hookOptions.value ?? {};
+    const { clientId: _clientId, throws: _throws, variables: _hookVars, ...apolloHookOptions } = currentHookOptions;
+    const mergedOptions = {
+      mutation: document.value,
+      ...apolloHookOptions,
+      ...executeOptions,
+      // Merge variables: hook variables (resolved) + execute variables
+      variables: executeOptions?.variables ?? variables.value ? {
+        ...variables.value,
+        ...executeOptions?.variables
+      } : void 0,
+      // Handle context callback
+      context: typeof executeOptions?.context === "function" ? executeOptions.context(currentHookOptions.context) : executeOptions?.context ?? currentHookOptions.context
+    };
+    error.value = void 0;
+    loading.value = true;
+    called.value = true;
+    try {
+      const mutationResult = await client.mutate(mergedOptions);
+      if (currentMutationId !== mutationId) {
+        return mutationResult;
+      }
+      result.value = mutationResult.data;
+      loading.value = false;
+      await runtimeCore.nextTick();
+      doneEvent.trigger(mutationResult);
+      return mutationResult;
+    } catch (e) {
+      if (currentMutationId !== mutationId) {
+        throw e;
+      }
+      const mutationError = e;
+      error.value = mutationError;
+      loading.value = false;
+      await runtimeCore.nextTick();
+      errorEvent.trigger(mutationError);
+      const throwsBehavior = currentHookOptions.throws ?? "auto";
+      if (throwsBehavior === "always" || throwsBehavior === "auto" && !hasErrorListeners()) {
+        throw mutationError;
+      }
+      return {
+        data: void 0,
+        error: mutationError
+      };
+    }
+  }
+  function reset() {
+    result.value = void 0;
+    error.value = void 0;
+    loading.value = false;
+    called.value = false;
+    mutationId = 0;
+  }
+  if (currentScope) {
+    reactivity.onScopeDispose(() => {
+      loading.value = false;
+    });
+  }
+  return {
+    mutate,
+    result,
+    error,
+    loading,
+    called,
+    reset,
+    onDone: doneEvent.on,
+    onError,
+    document,
+    options: hookOptions
+  };
+}
+
+function useSubscription(subscription, options) {
+  const currentScope = reactivity.getCurrentScope();
+  const document = reactivity.toRef(subscription);
+  const optionsRef = reactivity.toRef(options);
+  const { resolveClient } = useApolloClient();
+  function getClient() {
+    return resolveClient(optionsRef.value?.clientId);
+  }
+  const forceDisabled = reactivity.ref(false);
+  const enabledOption = reactivity.computed(() => reactivity.toValue(optionsRef.value?.enabled) ?? true);
+  const isEnabled = reactivity.computed(() => enabledOption.value && !forceDisabled.value && !!document.value);
+  const variables = reactivity.computed(() => {
+    const vars = reactivity.toValue(optionsRef.value?.variables);
+    if (vars == null) {
+      return {};
+    }
+    const result2 = {};
+    for (const [key, value] of Object.entries(vars)) {
+      result2[key] = reactivity.toValue(value);
+    }
+    return result2;
+  });
+  const currentVariables = reactivity.shallowRef(variables.value);
+  const setDebouncedVariables = core.useDebounceFn((newVariables) => {
+    currentVariables.value = newVariables;
+  }, () => optionsRef.value?.debounce ?? 0);
+  const setThrottledVariables = core.useThrottleFn((newVariables) => {
+    currentVariables.value = newVariables;
+  }, () => optionsRef.value?.throttle ?? 0);
+  runtimeCore.watch(variables, (newVariables) => {
+    if (optionsRef.value?.debounce != null) {
+      setDebouncedVariables(newVariables);
+    } else if (optionsRef.value?.throttle != null) {
+      setThrottledVariables(newVariables);
+    } else {
+      currentVariables.value = newVariables;
+    }
+  });
+  const result = reactivity.shallowRef(void 0);
+  const error = reactivity.shallowRef(void 0);
+  const loading = reactivity.ref(true);
+  const rxSubscription = reactivity.shallowRef();
+  trackSubscription(loading);
+  const resultEvent = core.createEventHook();
+  const errorEvent = core.createEventHook();
+  const completeEvent = core.createEventHook();
+  let previousOptions = null;
+  function buildSubscriptionOptions() {
+    return {
+      query: document.value,
+      variables: currentVariables.value,
+      fetchPolicy: optionsRef.value?.fetchPolicy,
+      errorPolicy: optionsRef.value?.errorPolicy,
+      context: optionsRef.value?.context,
+      extensions: optionsRef.value?.extensions
+    };
+  }
+  function shouldResubscribe(newOptions) {
+    if (!previousOptions)
+      return true;
+    const optionsChanged = previousOptions.query !== newOptions.query || !equality.equal(previousOptions.variables, newOptions.variables) || previousOptions.fetchPolicy !== newOptions.fetchPolicy || previousOptions.errorPolicy !== newOptions.errorPolicy || !equality.equal(previousOptions.context, newOptions.context) || !equality.equal(previousOptions.extensions, newOptions.extensions);
+    if (!optionsChanged)
+      return false;
+    const shouldResubscribeOption = optionsRef.value?.shouldResubscribe ?? true;
+    if (typeof shouldResubscribeOption === "function") {
+      return shouldResubscribeOption(optionsRef.value);
+    }
+    return shouldResubscribeOption;
+  }
+  function subscribe() {
+    const client = getClient();
+    const subscriptionOptions = buildSubscriptionOptions();
+    previousOptions = {
+      query: subscriptionOptions.query,
+      variables: subscriptionOptions.variables,
+      fetchPolicy: subscriptionOptions.fetchPolicy,
+      errorPolicy: subscriptionOptions.errorPolicy,
+      context: subscriptionOptions.context,
+      extensions: subscriptionOptions.extensions
+    };
+    loading.value = true;
+    error.value = void 0;
+    const observable = client.subscribe(subscriptionOptions);
+    rxSubscription.value = observable.subscribe({
+      next: (subscriptionResult) => {
+        loading.value = false;
+        result.value = subscriptionResult.data;
+        error.value = subscriptionResult.error;
+        if (subscriptionResult.error) {
+          errorEvent.trigger(subscriptionResult.error);
+        } else if (subscriptionResult.data) {
+          resultEvent.trigger(subscriptionResult.data);
+        }
+      },
+      error: (subscriptionError) => {
+        loading.value = false;
+        error.value = subscriptionError;
+        errorEvent.trigger(subscriptionError);
+      },
+      complete: () => {
+        loading.value = false;
+        completeEvent.trigger();
+      }
+    });
+  }
+  function unsubscribe() {
+    rxSubscription.value?.unsubscribe();
+    rxSubscription.value = void 0;
+  }
+  runtimeCore.watch(isEnabled, (newIsEnabled) => {
+    if (newIsEnabled) {
+      subscribe();
+    } else {
+      unsubscribe();
+      loading.value = false;
+    }
+  }, { immediate: true, flush: "sync" });
+  runtimeCore.watch([document, currentVariables, () => optionsRef.value?.fetchPolicy, () => optionsRef.value?.errorPolicy], () => {
+    if (!isEnabled.value || !rxSubscription.value)
+      return;
+    const newOptions = buildSubscriptionOptions();
+    if (shouldResubscribe(newOptions)) {
+      unsubscribe();
+      subscribe();
+    }
+  });
+  if (currentScope) {
+    reactivity.onScopeDispose(() => {
+      unsubscribe();
+    });
+  }
+  function start() {
+    forceDisabled.value = false;
+  }
+  function stop() {
+    forceDisabled.value = true;
+  }
+  async function restart() {
+    if (!isEnabled.value)
+      return;
+    forceDisabled.value = true;
+    await runtimeCore.nextTick();
+    forceDisabled.value = false;
+  }
+  return {
+    result,
+    error,
+    loading,
+    start,
+    stop,
+    restart,
+    onResult: resultEvent.on,
+    onError: errorEvent.on,
+    onComplete: completeEvent.on,
+    document,
+    variables: currentVariables,
+    options: optionsRef
+  };
+}
+
+exports.ApolloClients = ApolloClients;
+exports.DefaultApolloClient = DefaultApolloClient;
+exports.provideApolloClient = provideApolloClient;
+exports.provideApolloClients = provideApolloClients;
+exports.useApolloClient = useApolloClient;
+exports.useFragment = useFragment;
+exports.useGlobalMutationLoading = useGlobalMutationLoading;
+exports.useGlobalQueryLoading = useGlobalQueryLoading;
+exports.useGlobalSubscriptionLoading = useGlobalSubscriptionLoading;
+exports.useLazyQuery = useLazyQuery;
+exports.useMutation = useMutation;
+exports.useMutationLoading = useMutationLoading;
+exports.useQuery = useQuery;
+exports.useQueryLoading = useQueryLoading;
+exports.useSubscription = useSubscription;
+exports.useSubscriptionLoading = useSubscriptionLoading;
+//# sourceMappingURL=index.cjs.map

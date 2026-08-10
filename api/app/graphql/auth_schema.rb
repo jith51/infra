@@ -1,7 +1,9 @@
+# frozen_string_literal: true
+
+# Schema pour authentification
 class AuthSchema < GraphQL::Schema
   # use GraphQL::Execution::Errors
   # use GraphQL::Subscriptions::ActionCableSubscriptions
-  # 
   mutation(::AuthGql::Types::MutationType)
 
   query(::AuthGql::Types::QueryType)
@@ -13,7 +15,5 @@ class AuthSchema < GraphQL::Schema
   end
   rescue_from(ActiveRecord::RecordInvalid) do |err, obj, args, ctx, field|
     raise GraphQL::ExecutionError, err
-
   end
-
 end

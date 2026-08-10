@@ -1,0 +1,5 @@
+mutation DeleteChassis($id: ID!) {
+  deleteChassis(input: { id: $id}) {
+    deletedId
+  }
+}

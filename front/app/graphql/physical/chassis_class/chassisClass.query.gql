@@ -1,0 +1,18 @@
+#import './chassisClass.fragment.gql'
+
+query chassisClass(
+  $nameOrId: String
+  $onlyChassisClass: Boolean = false
+) {
+  chassisClass(
+    nameOrId: $nameOrId
+  )   {
+      ...ChassisClassFragment  
+  }
+  chassisPowertypes @skip(if: $onlyChassisClass) {
+      id
+      name
+      parentId
+      customAttributes
+  }
+}

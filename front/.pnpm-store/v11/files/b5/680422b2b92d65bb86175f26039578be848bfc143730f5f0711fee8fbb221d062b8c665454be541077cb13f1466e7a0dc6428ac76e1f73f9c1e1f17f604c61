@@ -1,0 +1,43 @@
+let vue_demi = require("vue-demi");
+
+//#region src/useSelector.ts
+function defaultCompare(a, b) {
+	return a === b;
+}
+/**
+* Selects a slice of state from an atom or store and subscribes the component
+* to that selection.
+*
+* This is the primary Vue read hook for TanStack Store. It returns a readonly
+* ref containing the selected value.
+*
+* Omit the selector to subscribe to the whole value.
+*
+* @example
+* ```ts
+* const count = useSelector(counterStore, (state) => state.count)
+* console.log(count.value)
+* ```
+*
+* @example
+* ```ts
+* const value = useSelector(countAtom)
+* ```
+*/
+function useSelector(source, selector = (s) => s, options) {
+	const compare = options?.compare ?? defaultCompare;
+	const slice = (0, vue_demi.shallowRef)(selector(source.get()));
+	const unsubscribe = source.subscribe((snapshot) => {
+		const selected = selector(snapshot);
+		if (compare((0, vue_demi.toRaw)(slice.value), selected)) return;
+		slice.value = selected;
+	}).unsubscribe;
+	(0, vue_demi.onScopeDispose)(() => {
+		unsubscribe();
+	});
+	return (0, vue_demi.readonly)(slice);
+}
+
+//#endregion
+exports.useSelector = useSelector;
+//# sourceMappingURL=useSelector.cjs.map

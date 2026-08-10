@@ -1,0 +1,13 @@
+query chassisClassesFile(
+  $structOnly: Boolean!
+  $chassisPowertypeId: ID
+) {
+  chassisClassesFile(
+    structOnly: $structOnly
+    chassisPowertypeId: $chassisPowertypeId
+  ) {
+    filename
+    type
+    contentBase64
+  }
+}

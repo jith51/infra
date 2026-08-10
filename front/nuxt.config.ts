@@ -1,75 +1,59 @@
-// https://v3.nuxtjs.org/api/configuration/nuxt.config
+// https://nuxt.com/docs/api/configuration/nuxt-config
+import tailwindcss from '@tailwindcss/vite'
 import graphql from '@rollup/plugin-graphql'
-import { twVariantGroups } from './utils/parse_variants'
-import path from 'path'
-import Aura from '@primeuix/themes/aura'
+import { twVariantGroups } from './app/utils/parse_variants'
 
 export default defineNuxtConfig({
+  compatibilityDate: '2025-07-15',
+  devtools: { enabled: true },
   ssr: false,
-  future: {
-    compatibilityVersion: 4,
-  },
+  css: ['./app/assets/css/main.css'],
   runtimeConfig: {
     public: {
-      baseURL: "fake"
+      baseURL: "defini_dans_le_dot_ENV"
     }
   },
   imports: {
-    dirs: [
-      // ... or scan all modules within given directory
-      'composables/**'
-    ]
+    dirs: ['~/composables/**'],
   },
-  buildModules: ['@nuxt/typescript-build'],
-  modules: [
-    '@nuxtjs/tailwindcss',
-    '@primevue/nuxt-module',
-    'shadcn-nuxt',
-    'nuxt-lodash',
-    '@vueuse/nuxt',
+  components: [
+    // ~/calendar-module/components/event/Update.vue => <EventUpdate />
+    { path: '~/components/form/field' },
+    '~/components',
   ],
-  build: {
-    transpile: ['radix-vue'],
-    extend(config, ctx) {
-      config.module.rules.push({
-        test: /\.(graphql|gql)$/,
-        loader: 'graphql-tag/loader',
-        use: 'graphql-tag/loader',
-        options: {
-          name: 'graphql'
-        }
-      })
-    },
-  },
+  modules: [
+    'shadcn-nuxt',
+    '@nuxt/devtools',
+    '@vueuse/nuxt',
+    '@nuxt/image',
+    '@chettapong/nuxt-lodash',
+    'vue-sonner/nuxt'
+  ],
   typescript: {
     strict: true
   },
-  primevue: {
-    components: {
-      prefix: 'Prime',
-    },
-    options: {
-      theme: {
-          preset: Aura,
-      }
-    },
-  },
   vite: {
-    resolve: {
-      alias:{
-        '@/': path.resolve( __dirname, '../'),
-      }
-    },
     plugins: [
+      tailwindcss(),
       twVariantGroups(),
       graphql(), // ADD
     ],
+    optimizeDeps: {
+      include: [
+        '@lucide/vue',
+        'class-variance-authority',
+        'clsx',
+        'reka-ui',
+        'tailwind-merge',
+      ]
+    },
     define: {
       "global": { navigator: {}},
+      "globalThis.__DEV__": JSON.stringify(true),
     },
   },
   shadcn: {
     prefix: '',
-    componentDir: './components/ui'
+    componentDir: './app/components/ui'
   },
 })

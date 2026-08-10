@@ -1,0 +1,4 @@
+fragment PortTypeFragment on PortTypeType {
+  id
+  name
+}

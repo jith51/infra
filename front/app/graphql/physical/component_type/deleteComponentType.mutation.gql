@@ -1,0 +1,5 @@
+mutation deleteComponentType($id: ID!) {
+  deleteComponentType(input: { id: $id}) {
+    deletedId
+  }
+}

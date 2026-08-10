@@ -1,0 +1,41 @@
+import { visit, Kind } from "graphql";
+const TYPENAME_FIELD = {
+    kind: Kind.FIELD,
+    name: {
+        kind: Kind.NAME,
+        value: "__typename",
+    },
+    selectionSet: {
+        kind: Kind.SELECTION_SET,
+        selections: []
+    }
+};
+function addTypenameIfAbsent(node) {
+    if (node.selectionSet) {
+        const alreadyHasThisField = node.selectionSet.selections.some(function (selection) {
+            return (selection.kind === "Field" && selection.name.value === "__typename");
+        });
+        if (!alreadyHasThisField) {
+            return Object.assign(Object.assign({}, node), { selectionSet: Object.assign(Object.assign({}, node.selectionSet), { selections: [...node.selectionSet.selections, TYPENAME_FIELD] }) });
+        }
+        else {
+            return undefined;
+        }
+    }
+    else {
+        return undefined;
+    }
+}
+function addTypenameToSelectionSet(node) {
+    var visitor = {
+        Field: {
+            leave: addTypenameIfAbsent,
+        },
+        InlineFragment: {
+            leave: addTypenameIfAbsent,
+        }
+    };
+    var newNode = visit(node, visitor);
+    return newNode;
+}
+export { addTypenameToSelectionSet, addTypenameIfAbsent };

@@ -4,7 +4,7 @@ module Physical
   # Composant
   class Component < ActiveRecord::Base
     belongs_to :component_type, required: false
-    belongs_to :host, polymorphic: true
-    validates :name, presence: true, uniqueness: { scope: %i[host_id host_type] }
+    belongs_to :chassis
+    validates :name, presence: true, uniqueness: { scope: :chassis_id }
   end
 end

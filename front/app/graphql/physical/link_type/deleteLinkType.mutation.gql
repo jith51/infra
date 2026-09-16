@@ -1,0 +1,5 @@
+mutation deleteLinkType($id: ID!) {
+  deleteLinkType(input: { id: $id}) {
+    deletedId
+  }
+}

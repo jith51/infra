@@ -10,7 +10,8 @@ export default defineNuxtConfig({
   css: ['./app/assets/css/main.css'],
   runtimeConfig: {
     public: {
-      baseURL: "defini_dans_le_dot_ENV"
+      baseURL: "defini_dans_le_dot_ENV",
+      casUrl: process.env.NUXT_PUBLIC_CAS_URL
     }
   },
   imports: {

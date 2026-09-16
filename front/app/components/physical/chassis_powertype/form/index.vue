@@ -1,30 +1,57 @@
-<script setup lang="ts">
-    // Types
-    import type { ChassisPowertypeType } from '@/types/physical/chassis_powertype.ts'
-    import type { ChassisPowertypeFormType } from '@/types/physical/chassis_powertype.ts'
+<template>
+    <!-- :key est indispensable pour reconstruire la form apres un reset sinon tanstack ne met pas bien a jour le tableau de la forme -->
+     <Form id="physical_powertype_form" :of="chassisPowertypeForm" @submit="submitForm" >
+        <FieldGroup class="mb-4 border-l border-grey-200 gap-10 pl-3 pr-1">
+            <!-- Name Field -->
+            <FieldSet class="gap-10 mt-1">    
+                <InputField :of="chassisPowertypeForm" :path="['name']" label="Nom"/> 
+            </FieldSet>
+            <!-- Tableau des Custum Attributes -->
+            <CustomAttributesDefinitionFormishField
+                :of="chassisPowertypeForm"
+                :path="['customAttributesDefinition']"
+            />
+            <!-- Tableaux Custum Attributes Parents -->
+            <template v-for="parent in chassisPowertypeAscendants" class="gap-2">
+                <ParentCustomAttributes
+                    v-if="parent.customAttributesDefinition"
+                    :customAttributesDefinition="parent.customAttributesDefinition"
+                    :parentName="parent.name"
+                />
+            </template>
+        </FieldGroup>
+        <div class="flex w-full justify-end">
+            <!-- Validation -->
+            <Button type="submit" form="physical_powertype_form" :disabled="!chassisPowertypeForm.isValid">
+                {{ chassisPowertypeForm.isSubmitting ? '...' : 'Submit' }}
+            </Button>
+        </div>
+        <div>
+            <!-- Pre -->
+            <pre>{{ getInput(chassisPowertypeForm) }} </pre>
+            <pre>{{ getDeepErrorEntries(chassisPowertypeForm) }} </pre>
+        </div>
+    </Form>
+</template>
 
-    // Schema valibot
-    import { chassisPowertypeFormSchema } from '@/types/physical/chassis_powertype'
-    
-    // Validation Form
-    import { useForm } from '@tanstack/vue-form'
+<script setup lang="ts">
+    //
+    // Le composant est rechargé par le parent (via :key) ce qui permet de declarer un nouveau Schema a chaque fois
+    //
 
     // Composants
     import ParentCustomAttributes from "./ParentCustomAttributes.vue"
-    
-    // Toast
-    import { toast } from 'vue-sonner'    
-    
+    import CustomAttributesDefinitionFormishField from '../../component/CustomAttributesDefinitionFormishField.vue'
+    import InputField from '@/components/form/formishField/InputField.vue'
+
     // Props
+    import type { ChassisPowertypeType } from '@/types/physical/chassis_powertype.ts'
+    import type { ChassisPowertypeFormType } from '@/types/physical/chassis_powertype.ts'
+
     const props = defineProps<{
         chassisPowertype: ChassisPowertypeFormType
         chassisPowertypeAscendants?: ChassisPowertypeType[]
     }>()
-
-    // Listes des custom attributes des ascendants
-    const customAttributesOfAscendant = computed(() => 
-        (props.chassisPowertypeAscendants ?? []).map((cp) => cp.customAttributes).flat()
-    )
 
     // Emits : Annulation et validation
     const emit = defineEmits<{
@@ -33,25 +60,31 @@
     }>()
 
     // Déclaration de la form
-    const form = useForm({
-        defaultValues: props.chassisPowertype,
-        // defaultValues: currentChassisPowertype.value,
-        validators: {
-            onSubmit: chassisPowertypeFormSchema,
-            onChange: chassisPowertypeFormSchema,
-            onChangeAsyncDebounceMs: 500,
-        },
-        onSubmit: ({ value }) => {
-            mutateObject(value)
-        },
+    import { chassisPowertypeFormSchema, setChassiPowertypeSchema } from '@/types/physical/chassis_powertype'
+    import { Form, Field, useForm, getDeepErrorEntries, getInput, focus } from '@formisch/vue'
+    import type { SubmitHandler } from '@formisch/vue'
+        // Récupération des noms des customs attributes des parents
+    const forbiddenNames = (props.chassisPowertypeAscendants ?? [])
+        .flatMap(a => a.customAttributesDefinition ?? [])
+        .map(attribute => attribute.name)
+        // Constrcutiondu Schema
+    const Schema = setChassiPowertypeSchema(forbiddenNames)
+        // Définition de la forme
+    const chassisPowertypeForm =  useForm({
+        schema: Schema,
+        validate: 'blur',
+        revalidate: 'input',
+        initialInput: props.chassisPowertype
     })
+        // Validation de la form
+    const submitForm: SubmitHandler<typeof chassisPowertypeFormSchema> = async (output) => {
+        focus(chassisPowertypeForm, { path: ['name'] })
+    //    mutateObject(output)
+    };
 
-    watch(
-        () => props.chassisPowertype,
-        (cp) => form.reset(cp)
-    )
-
+    focus(chassisPowertypeForm, { path: ['name'] })
     // Mutation de la forme
+    import { toast } from 'vue-sonner'
     import { CombinedGraphQLErrors } from "@apollo/client/errors";
 
     const { mutateObject, onMutationDone, onMutationError } = useChassisPowertypeGraphQl()
@@ -60,70 +93,10 @@
     })
     onMutationError((error) => {
         if (CombinedGraphQLErrors.is(error)) {
-            toast.error(error.errors[0]!.message)
+            toast.error(error.errors[0]!.message +' : ' + error.errors[0]?.extensions?.field_errors?.name)
         }
     })
-
-    //  Custom attributes definition
-    import CustomAttributesDefinitionField from "@/components/physical/custom_attributes/customAttributesDefinitionField.vue"
-    //      Utilitaire : validation du name d'un custom attribute
-    function validateUniqNameOnCustomAttribute (value: string)  {
-        let attributes = [
-            // les customAttibutes de la form
-            ...(form.getFieldValue('customAttributes') ?? []),
-            // les customAttibutes des ascendants
-            ...customAttributesOfAscendant.value
-        ]
-
-        const count = attributes.filter(
-            a => a?.name.trim() === value.trim()
-        ).length
-
-        if (value && count > 1) {
-            return 'Chaque attribut doit avoir un nom unique.'
-        }
-        return undefined
-    }
+    
 
 </script>
 
-<template>
-    <!-- :key est indispensable pour reconstruire la form apres un reset sinon tanstack ne met pas bien a jour le tableau de la forme -->
-    <form
-        id="physical_powertype_form"
-        :key="props.chassisPowertype?.id ?? 'new'"
-        @submit.prevent.stop="form.handleSubmit()"
-    >
-        <FieldGroup class="mb-4 border-l border-grey-200 gap-10 pl-3 pr-1">
-            <!-- Name Field -->
-            <FieldSet class="gap-10 mt-1">
-                <InputField :form name="name" label="Nom"/>
-            </FieldSet>
-            <!-- Tableau des Custum Attributes -->
-            <CustomAttributesDefinitionField
-                :form
-                name="customAttributes"
-                :validateUniqNameOnCustomAttribute="validateUniqNameOnCustomAttribute"
-            />
-            <!-- Tableaux Custum Attributes Parents -->
-            <template v-for="parent in chassisPowertypeAscendants" class="gap-2">
-                <ParentCustomAttributes
-                    v-if="parent.customAttributes"
-                    :customAttributes="parent.customAttributes"
-                    :parentName="parent.name"
-                />
-            </template>
-        </FieldGroup>
-        <form.Subscribe>
-            <template v-slot="{ canSubmit, isSubmitting }">
-                <div class="flex w-full justify-end">
-                    <Button type="submit" form="physical_powertype_form" :disabled="!canSubmit">
-                        {{ isSubmitting ? '...' : 'Submit' }}
-                    </Button>
-                </div>
-                <!-- <pre>{{ form.state.values }}</pre>
-                <pre>{{ form.state.errors }}</pre> -->
-            </template>
-        </form.Subscribe>
-    </form>
-</template>

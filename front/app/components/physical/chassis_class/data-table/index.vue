@@ -35,7 +35,8 @@
 
 	// API CALLs
 	// On va rechercher les ChassisClasses
-	const { queryAllResult: chassisClasses, noMoreData, filter, loadMore } = useChassisClassGraphQl()
+	const { useDataTableQuery } = useChassisClassGraphQl()
+	const { queryAllResult: chassisClasses, noMoreData, filter, loadMore } = useDataTableQuery()
 
 	// On va rechercher les Powertypes
 	const { loadObjectsWithCounter, objectsWithCounter} = useChassisPowertypeGraphQl()

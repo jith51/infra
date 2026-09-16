@@ -10,7 +10,7 @@ module App
         argument :id, String, required: false
         argument :name, String, required: true
         argument :parent_id, String, required: false
-        argument :custom_attributes, [::App::Physical::Arguments::CustomAttribute], required: false
+        argument :custom_attributes_definition, [::App::Physical::Arguments::CustomAttributesDefinition], required: false
       end
     end
   end

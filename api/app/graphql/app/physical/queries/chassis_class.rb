@@ -13,7 +13,7 @@ module App
           return nil if name_or_id.blank?
 
           ::Physical::ChassisClass
-            .includes(:components, :ports)
+            .includes(:component_slots, :port_slots)
             .find_by('id::text = :value OR name = :value', value: name_or_id)
         end
       end

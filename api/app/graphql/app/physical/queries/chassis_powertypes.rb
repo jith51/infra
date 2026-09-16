@@ -13,10 +13,11 @@ module App
           scope = ::Physical::ChassisPowertype.all
 
           if with_chassis_class_counter
-            scope = scope.left_outer_joins(:chassis_classes).select(
-              'powertypes.*',
-              'COUNT(physical_chassis_classes.id) AS chassis_classes_number'
-            ).group('powertypes.id')
+            scope =
+              scope
+              .left_joins(:chassis_classes)
+              .select('powertypes.*, COUNT(physical_chassis_classes.id) AS chassis_classes_number')
+              .group(:id)
           end
 
           scope

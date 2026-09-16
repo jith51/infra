@@ -14,3 +14,20 @@ class GraphQL::ExecutionError < GraphQL::Error
     end
   end
 end
+
+structure erreur :
+
+{
+  "errors": [
+    {
+      "message": "Validation failed",
+      "path": ["createTag"],
+      "extensions": {
+        "code": "VALIDATION_ERROR",
+        "field_errors": {
+          "name": ["has already been taken"]
+        }
+      }
+    }
+  ]
+}

@@ -14,6 +14,14 @@ const chassisSchema = v.object({
     chassisClass: chassisClassSchema,
     ports: v.optional(v.array(portSchema)),
     components: v.optional(v.array(componentSchema)),
+    customAttributes: v.nullish(v.record(
+        v.string(),
+        v.nullish(v.union([
+            v.string(),
+            v.number(),
+            v.boolean(),
+        ]))
+    )),
     tags: v.optional(v.array(v.string())),
     tagIds: v.optional(v.array(v.string()))
 })
@@ -46,31 +54,3 @@ export type ChassisFilterTablesType = {
     tags: FilterTableType[],
     chassisClasses: FilterTableType[]
 }
-
-// Connections
-// const connectionFormSchema = v.object({
-//     id: v.optional(v.string()),
-//     distantId: v.nullish(v.string()),
-//     linkTypeId: v.nullish(v.string()),
-//     _destroy: v.nullish(v.boolean())
-// })
-
-// // Components
-// const componentFormSchema = v.object({
-//     id: v.optional(v.string()),
-//     name: v.pipe(v.string(), v.nonEmpty()),
-//     serialNumber: v.nullish(v.string()),
-//     description: v.nullish(v.string()),
-//     componentTypeId: v.string(),
-//     _destroy: v.nullish(v.boolean())
-// })
-
-// // Ports
-// const portFormSchema = v.object({
-//     id: v.optional(v.string()),
-//     name: v.pipe(v.string(), v.nonEmpty()),
-//     macAddress: v.nullish(v.string()),
-//     interfaceTypeId: v.nullish(v.string()),
-//     connection: v.nullish(connectionFormSchema),
-//     _destroy: v.nullish(v.boolean())
-// })

@@ -1,0 +1,14 @@
+# frozen_string_literal: true
+
+module Errors
+  module ApiErrorCodes
+    VALIDATION = 'VALIDATION_ERROR'
+    NOT_FOUND = 'NOT_FOUND'
+    CONFLICT = 'CONFLICT'
+    UNAUTHORIZED = 'UNAUTHORIZED'
+    FORBIDDEN = 'FORBIDDEN'
+    BAD_REQUEST = 'BAD_REQUEST'
+    DATABASE = 'DATABASE_ERROR'
+    INTERNAL = 'INTERNAL_ERROR'
+  end
+end

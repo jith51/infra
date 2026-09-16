@@ -13,6 +13,6 @@ query chassisClass(
       id
       name
       parentId
-      customAttributes
+      customAttributesDefinition
   }
 }

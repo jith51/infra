@@ -1,0 +1,1203 @@
+import { BaseFormStore, DeepPartial, DeepPartial as DeepPartial$1, DirtyPath, FieldElement, FieldPath, FormConfig, FormConfig as FormConfig$1, FormSchema, FormSchema as FormSchema$1, PartialValues, PartialValues as PartialValues$1, Path, PathValue, PathValue as PathValue$1, RequiredPath, RequiredPath as RequiredPath$1, Schema, SubmitEventHandler, SubmitEventHandler as SubmitEventHandler$1, SubmitHandler, SubmitHandler as SubmitHandler$1, ValidArrayPath, ValidArrayPath as ValidArrayPath$1, ValidPath, ValidPath as ValidPath$1, ValidationMode } from "./internals.js";
+import * as vue3 from "vue";
+import { ComponentPublicInstance, MaybeRefOrGetter } from "vue";
+import * as v from "valibot";
+
+//#region ../../packages/methods/dist/index.vue.d.ts
+
+//#region src/focus/focus.d.ts
+/**
+* Focus field config interface.
+*/
+interface FocusFieldConfig<TSchema extends FormSchema$1, TFieldPath extends RequiredPath$1> {
+  /**
+  * The path to the field to focus.
+  */
+  readonly path: ValidPath$1<v.InferInput<TSchema>, TFieldPath>;
+}
+/**
+* Focuses the first focusable input element of a field. This is useful for
+* programmatically setting focus to a specific field, such as after
+* validation errors or user interactions.
+*
+* @param form The form store containing the field.
+* @param config The focus field configuration.
+*/
+declare function focus<TSchema extends FormSchema$1, TFieldPath extends RequiredPath$1>(form: BaseFormStore<TSchema>, config: FocusFieldConfig<TSchema, TFieldPath>): void;
+//#endregion
+//#region src/getDeepError/getDeepError.d.ts
+/**
+* Get form deep error config interface.
+*/
+interface GetFormDeepErrorConfig {
+  /**
+  * The path to a field. Leave undefined to get the error of the entire form.
+  */
+  readonly path?: undefined;
+}
+/**
+* Get field deep error config interface.
+*/
+interface GetFieldDeepErrorConfig<TSchema extends FormSchema$1, TFieldPath extends RequiredPath$1> {
+  /**
+  * The path to the field to retrieve the error from.
+  */
+  readonly path: ValidPath$1<v.InferInput<TSchema>, TFieldPath>;
+}
+/**
+* Retrieves the first error message of a specific field or the entire form by
+* walking through the field store and all its descendants and stopping at the
+* first field with errors. This is useful for displaying a single error
+* message for a field whose value is a nested structure, such as a rich text
+* editor or tags input. Form-level errors are included.
+*
+* @param form The form store to retrieve the error from.
+*
+* @returns The first error message, or null if no errors exist.
+*/
+declare function getDeepError<TSchema extends FormSchema$1>(form: BaseFormStore<TSchema>): string | null;
+/**
+* Retrieves the first error message of a specific field or the entire form by
+* walking through the field store and all its descendants and stopping at the
+* first field with errors. This is useful for displaying a single error
+* message for a field whose value is a nested structure, such as a rich text
+* editor or tags input. Form-level errors are included.
+*
+* @param form The form store to retrieve the error from.
+* @param config The get deep error configuration.
+*
+* @returns The first error message, or null if no errors exist.
+*/
+declare function getDeepError<TSchema extends FormSchema$1, TFieldPath extends RequiredPath$1 | undefined = undefined>(form: BaseFormStore<TSchema>, config: TFieldPath extends RequiredPath$1 ? GetFieldDeepErrorConfig<TSchema, TFieldPath> : GetFormDeepErrorConfig): string | null;
+//#endregion
+//#region src/getDeepErrorEntries/getDeepErrorEntries.d.ts
+/**
+* Deep error entry interface.
+*/
+interface DeepErrorEntry<TValue = unknown> {
+  /**
+  * The path to the field with errors, or an empty path for form-level errors.
+  */
+  readonly path: unknown extends TValue ? Path : readonly [] | FieldPath<TValue>;
+  /**
+  * The error messages of the field.
+  */
+  readonly errors: [string, ...string[]];
+}
+/**
+* Get form deep error entries config interface.
+*/
+interface GetFormDeepErrorEntriesConfig {
+  /**
+  * The path to a field. Leave undefined to get the entries of the entire form.
+  */
+  readonly path?: undefined;
+}
+/**
+* Get field deep error entries config interface.
+*/
+interface GetFieldDeepErrorEntriesConfig<TSchema extends FormSchema$1, TFieldPath extends RequiredPath$1> {
+  /**
+  * The path to the field to retrieve the entries from.
+  */
+  readonly path: ValidPath$1<v.InferInput<TSchema>, TFieldPath>;
+}
+/**
+* Retrieves the errors of a specific field or the entire form as a list of
+* entries, each pairing the path to a field with its error messages. This is
+* useful for building custom error summaries that link each message back to
+* its field. Form-level errors are included with an empty path.
+*
+* @param form The form store to retrieve error entries from.
+*
+* @returns A list of path and error message entries.
+*/
+declare function getDeepErrorEntries<TSchema extends FormSchema$1>(form: BaseFormStore<TSchema>): DeepErrorEntry<v.InferInput<TSchema>>[];
+/**
+* Retrieves the errors of a specific field or the entire form as a list of
+* entries, each pairing the path to a field with its error messages. This is
+* useful for building custom error summaries that link each message back to
+* its field. Form-level errors are included with an empty path.
+*
+* @param form The form store to retrieve error entries from.
+* @param config The get deep error entries configuration.
+*
+* @returns A list of path and error message entries.
+*/
+declare function getDeepErrorEntries<TSchema extends FormSchema$1, TFieldPath extends RequiredPath$1 | undefined = undefined>(form: BaseFormStore<TSchema>, config: TFieldPath extends RequiredPath$1 ? GetFieldDeepErrorEntriesConfig<TSchema, TFieldPath> : GetFormDeepErrorEntriesConfig): DeepErrorEntry<v.InferInput<TSchema>>[];
+//#endregion
+//#region src/getDeepErrorEntry/getDeepErrorEntry.d.ts
+/**
+* Get form deep error entry config interface.
+*/
+interface GetFormDeepErrorEntryConfig {
+  /**
+  * The path to a field. Leave undefined to get the entry of the entire form.
+  */
+  readonly path?: undefined;
+}
+/**
+* Get field deep error entry config interface.
+*/
+interface GetFieldDeepErrorEntryConfig<TSchema extends FormSchema$1, TFieldPath extends RequiredPath$1> {
+  /**
+  * The path to the field to retrieve the entry from.
+  */
+  readonly path: ValidPath$1<v.InferInput<TSchema>, TFieldPath>;
+}
+/**
+* Retrieves the errors of the first erroring field of a specific field or the
+* entire form as an entry pairing the path to the field with its error
+* messages, by walking through the field store and all its descendants and
+* stopping at the first field with errors. This is useful for locating the
+* first erroring descendant of a field whose value is a nested structure while
+* retaining all errors at that path. Form-level errors are included with an
+* empty path.
+*
+* @param form The form store to retrieve the error entry from.
+*
+* @returns An entry containing the path and error messages, or null if no
+* errors exist.
+*/
+declare function getDeepErrorEntry<TSchema extends FormSchema$1>(form: BaseFormStore<TSchema>): DeepErrorEntry<v.InferInput<TSchema>> | null;
+/**
+* Retrieves the errors of the first erroring field of a specific field or the
+* entire form as an entry pairing the path to the field with its error
+* messages, by walking through the field store and all its descendants and
+* stopping at the first field with errors. This is useful for locating the
+* first erroring descendant of a field whose value is a nested structure while
+* retaining all errors at that path. Form-level errors are included with an
+* empty path.
+*
+* @param form The form store to retrieve the error entry from.
+* @param config The get deep error entry configuration.
+*
+* @returns An entry containing the path and error messages, or null if no
+* errors exist.
+*/
+declare function getDeepErrorEntry<TSchema extends FormSchema$1, TFieldPath extends RequiredPath$1 | undefined = undefined>(form: BaseFormStore<TSchema>, config: TFieldPath extends RequiredPath$1 ? GetFieldDeepErrorEntryConfig<TSchema, TFieldPath> : GetFormDeepErrorEntryConfig): DeepErrorEntry<v.InferInput<TSchema>> | null;
+//#endregion
+//#region src/getDeepErrors/getDeepErrors.d.ts
+/**
+* Get form deep errors config interface.
+*/
+interface GetFormDeepErrorsConfig {
+  /**
+  * The path to a field. Leave undefined to get the errors of the entire form.
+  */
+  readonly path?: undefined;
+}
+/**
+* Get field deep errors config interface.
+*/
+interface GetFieldDeepErrorsConfig<TSchema extends FormSchema$1, TFieldPath extends RequiredPath$1> {
+  /**
+  * The path to the field to retrieve the errors from.
+  */
+  readonly path: ValidPath$1<v.InferInput<TSchema>, TFieldPath>;
+}
+/**
+* Retrieves all error messages of a specific field or the entire form by
+* walking through the field store and all its descendants. This is useful for
+* displaying a summary of all validation errors within a section or the whole
+* form. Form-level errors are included.
+*
+* @param form The form store to retrieve errors from.
+*
+* @returns A non-empty array of error messages, or null if no errors exist.
+*/
+declare function getDeepErrors<TSchema extends FormSchema$1>(form: BaseFormStore<TSchema>): [string, ...string[]] | null;
+/**
+* Retrieves all error messages of a specific field or the entire form by
+* walking through the field store and all its descendants. This is useful for
+* displaying a summary of all validation errors within a section or the whole
+* form. Form-level errors are included.
+*
+* @param form The form store to retrieve errors from.
+* @param config The get deep errors configuration.
+*
+* @returns A non-empty array of error messages, or null if no errors exist.
+*/
+declare function getDeepErrors<TSchema extends FormSchema$1, TFieldPath extends RequiredPath$1 | undefined = undefined>(form: BaseFormStore<TSchema>, config: TFieldPath extends RequiredPath$1 ? GetFieldDeepErrorsConfig<TSchema, TFieldPath> : GetFormDeepErrorsConfig): [string, ...string[]] | null;
+//#endregion
+//#region src/getDirtyInput/getDirtyInput.d.ts
+/**
+* Get form dirty input config interface.
+*/
+interface GetFormDirtyInputConfig {
+  /**
+  * The path to a field. Leave undefined to get the dirty input of the entire
+  * form.
+  */
+  readonly path?: undefined;
+}
+/**
+* Get field dirty input config interface.
+*/
+interface GetFieldDirtyInputConfig<TSchema extends FormSchema$1, TFieldPath extends RequiredPath$1> {
+  /**
+  * The path to the field to retrieve the dirty input from.
+  */
+  readonly path: ValidPath$1<v.InferInput<TSchema>, TFieldPath>;
+}
+/**
+* Retrieves only the dirty input values of a specific field or the entire
+* form. Arrays are treated as atomic and returned in full if any item is
+* dirty, while object keys without a dirty descendant are omitted. Returns
+* `undefined` if no field in the inspected subtree is dirty.
+*
+* @param form The form store to retrieve dirty input from.
+*
+* @returns The dirty input of the form or specified field, or `undefined`.
+*/
+declare function getDirtyInput<TSchema extends FormSchema$1>(form: BaseFormStore<TSchema>): DeepPartial$1<v.InferInput<TSchema>> | undefined;
+/**
+* Retrieves only the dirty input values of a specific field or the entire
+* form. Arrays are treated as atomic and returned in full if any item is
+* dirty, while object keys without a dirty descendant are omitted. Returns
+* `undefined` if no field in the inspected subtree is dirty.
+*
+* @param form The form store to retrieve dirty input from.
+* @param config The get dirty input configuration.
+*
+* @returns The dirty input of the form or specified field, or `undefined`.
+*/
+declare function getDirtyInput<TSchema extends FormSchema$1, TFieldPath extends RequiredPath$1 | undefined = undefined>(form: BaseFormStore<TSchema>, config: TFieldPath extends RequiredPath$1 ? GetFieldDirtyInputConfig<TSchema, TFieldPath> : GetFormDirtyInputConfig): DeepPartial$1<TFieldPath extends RequiredPath$1 ? PathValue$1<v.InferInput<TSchema>, TFieldPath> : v.InferInput<TSchema>> | undefined;
+//#endregion
+//#region src/getDirtyPaths/getDirtyPaths.d.ts
+/**
+* Get form dirty paths config interface.
+*/
+interface GetFormDirtyPathsConfig {
+  /**
+  * The path to a field. Leave undefined to inspect the entire form.
+  */
+  readonly path?: undefined;
+}
+/**
+* Get field dirty paths config interface.
+*/
+interface GetFieldDirtyPathsConfig<TSchema extends FormSchema$1, TFieldPath extends RequiredPath$1> {
+  /**
+  * The path to the field to inspect.
+  */
+  readonly path: ValidPath$1<v.InferInput<TSchema>, TFieldPath>;
+}
+/**
+* Returns a list of paths to the dirty fields of a specific field or the
+* entire form. Arrays are treated as atomic and contribute only their own
+* path if any item is dirty, while object branches are recursed into. Returns
+* an empty list if no field in the inspected subtree is dirty.
+*
+* @param form The form store to inspect.
+*
+* @returns The list of paths to the dirty fields.
+*/
+declare function getDirtyPaths<TSchema extends FormSchema$1>(form: BaseFormStore<TSchema>): DirtyPath<v.InferInput<TSchema>>[];
+/**
+* Returns a list of paths to the dirty fields of a specific field or the
+* entire form. Arrays are treated as atomic and contribute only their own
+* path if any item is dirty, while object branches are recursed into. Returns
+* an empty list if no field in the inspected subtree is dirty.
+*
+* @param form The form store to inspect.
+* @param config The get dirty paths configuration.
+*
+* @returns The list of paths to the dirty fields.
+*/
+declare function getDirtyPaths<TSchema extends FormSchema$1, TFieldPath extends RequiredPath$1 | undefined = undefined>(form: BaseFormStore<TSchema>, config: TFieldPath extends RequiredPath$1 ? GetFieldDirtyPathsConfig<TSchema, TFieldPath> : GetFormDirtyPathsConfig): DirtyPath<v.InferInput<TSchema>>[];
+//#endregion
+//#region src/getErrors/getErrors.d.ts
+/**
+* Get form errors config interface.
+*/
+interface GetFormErrorsConfig {
+  /**
+  * The path to a field. Leave undefined to get form-level errors.
+  */
+  readonly path?: undefined;
+}
+/**
+* Get field errors config interface.
+*/
+interface GetFieldErrorsConfig<TSchema extends FormSchema$1, TFieldPath extends RequiredPath$1> {
+  /**
+  * The path to the field to retrieve errors from.
+  */
+  readonly path: ValidPath$1<v.InferInput<TSchema>, TFieldPath>;
+}
+/**
+* Retrieves error messages from the form. When called without a config,
+* returns form-level errors. When called with a path, returns errors for
+* that specific field.
+*
+* @param form The form store to retrieve errors from.
+*
+* @returns A non-empty array of error messages, or null if no errors exist.
+*/
+declare function getErrors<TSchema extends FormSchema$1>(form: BaseFormStore<TSchema>): [string, ...string[]] | null;
+/**
+* Retrieves error messages from the form. When called without a config,
+* returns form-level errors. When called with a path, returns errors for
+* that specific field.
+*
+* @param form The form store to retrieve errors from.
+* @param config The get errors configuration.
+*
+* @returns A non-empty array of error messages, or null if no errors exist.
+*/
+declare function getErrors<TSchema extends FormSchema$1, TFieldPath extends RequiredPath$1 | undefined = undefined>(form: BaseFormStore<TSchema>, config: TFieldPath extends RequiredPath$1 ? GetFieldErrorsConfig<TSchema, TFieldPath> : GetFormErrorsConfig): [string, ...string[]] | null;
+//#endregion
+//#region src/getInput/getInput.d.ts
+/**
+* Get form input config interface.
+*/
+interface GetFormInputConfig {
+  /**
+  * The path to a field. Leave undefined to get the entire form input.
+  */
+  readonly path?: undefined;
+}
+/**
+* Get field input config interface.
+*/
+interface GetFieldInputConfig<TSchema extends FormSchema$1, TFieldPath extends RequiredPath$1> {
+  /**
+  * The path to the field to retrieve input from.
+  */
+  readonly path: ValidPath$1<v.InferInput<TSchema>, TFieldPath>;
+}
+/**
+* Retrieves the current input value of a specific field or the entire form.
+* Returns a partial object as not all fields may have been set.
+*
+* @param form The form store to retrieve input from.
+*
+* @returns The partial input values of the form or the specified field.
+*/
+declare function getInput<TSchema extends FormSchema$1>(form: BaseFormStore<TSchema>): PartialValues$1<v.InferInput<TSchema>>;
+/**
+* Retrieves the current input value of a specific field or the entire form.
+* Returns a partial object as not all fields may have been set.
+*
+* @param form The form store to retrieve input from.
+* @param config The get input configuration.
+*
+* @returns The partial input values of the form or the specified field.
+*/
+declare function getInput<TSchema extends FormSchema$1, TFieldPath extends RequiredPath$1 | undefined = undefined>(form: BaseFormStore<TSchema>, config: TFieldPath extends RequiredPath$1 ? GetFieldInputConfig<TSchema, TFieldPath> : GetFormInputConfig): PartialValues$1<TFieldPath extends RequiredPath$1 ? PathValue$1<v.InferInput<TSchema>, TFieldPath> : v.InferInput<TSchema>>;
+//#endregion
+//#region src/handleSubmit/handleSubmit.d.ts
+/**
+* Creates a submit event handler for the form that validates the form input,
+* and calls the provided handler if validation succeeds. This is designed to
+* be used with the form's onsubmit event.
+*
+* @param form The form store to handle submission for.
+* @param handler The submit handler function called with validated output if validation succeeds.
+*
+* @returns A submit event handler function to attach to the form element.
+*/
+declare function handleSubmit<TSchema extends FormSchema$1>(form: BaseFormStore<TSchema>, handler: SubmitHandler$1<TSchema>): () => Promise<void>;
+/**
+* Creates a submit event handler for the form that prevents default browser
+* submission, validates the form input, and calls the provided handler if
+* validation succeeds. This is designed to be used with the form's onsubmit event.
+*
+* @param form The form store to handle submission for.
+* @param handler The submit handler function called with validated output if validation succeeds.
+*
+* @returns A submit event handler function to attach to the form element.
+*/
+declare function handleSubmit<TSchema extends FormSchema$1>(form: BaseFormStore<TSchema>, handler: SubmitEventHandler$1<TSchema>): (event: SubmitEvent) => Promise<void>;
+//#endregion
+//#region src/insert/insert.d.ts
+/**
+* Insert array field config interface.
+*/
+interface InsertConfig<TSchema extends FormSchema$1, TFieldArrayPath extends RequiredPath$1> {
+  /**
+  * The path to the field array to insert into.
+  */
+  readonly path: ValidArrayPath$1<v.InferInput<TSchema>, TFieldArrayPath>;
+  /**
+  * The index to insert the new item at. If undefined, appends to the end.
+  */
+  readonly at?: number | undefined;
+  /**
+  * The partial initial input value for the new item.
+  */
+  readonly initialInput?: DeepPartial$1<PathValue$1<v.InferInput<TSchema>, [...TFieldArrayPath, number]>> | undefined;
+}
+/**
+* Inserts a new item into a field array at the specified index. All items at
+* or after the insertion point are shifted up by one index.
+*
+* @param form The form store containing the field array.
+* @param config The insert configuration specifying the path, index, and initial value.
+*/
+declare function insert<TSchema extends FormSchema$1, TFieldArrayPath extends RequiredPath$1>(form: BaseFormStore<TSchema>, config: InsertConfig<TSchema, TFieldArrayPath>): void;
+//#endregion
+//#region src/isDirty/isDirty.d.ts
+/**
+* Is form dirty config interface.
+*/
+interface IsFormDirtyConfig {
+  /**
+  * The path to a field. Leave undefined to check the entire form.
+  */
+  readonly path?: undefined;
+}
+/**
+* Is field dirty config interface.
+*/
+interface IsFieldDirtyConfig<TSchema extends FormSchema$1, TFieldPath extends RequiredPath$1> {
+  /**
+  * The path to the field to check for dirtiness.
+  */
+  readonly path: ValidPath$1<v.InferInput<TSchema>, TFieldPath>;
+}
+/**
+* Checks whether a specific field or the entire form is dirty by walking
+* through the field store and all its descendants. A field is dirty when its
+* input differs from its initial value.
+*
+* @param form The form store to check for dirtiness.
+*
+* @returns Whether the field or form is dirty.
+*/
+declare function isDirty<TSchema extends FormSchema$1>(form: BaseFormStore<TSchema>): boolean;
+/**
+* Checks whether a specific field or the entire form is dirty by walking
+* through the field store and all its descendants. A field is dirty when its
+* input differs from its initial value.
+*
+* @param form The form store to check for dirtiness.
+* @param config The is dirty configuration.
+*
+* @returns Whether the field or form is dirty.
+*/
+declare function isDirty<TSchema extends FormSchema$1, TFieldPath extends RequiredPath$1 | undefined = undefined>(form: BaseFormStore<TSchema>, config: TFieldPath extends RequiredPath$1 ? IsFieldDirtyConfig<TSchema, TFieldPath> : IsFormDirtyConfig): boolean;
+//#endregion
+//#region src/isEdited/isEdited.d.ts
+/**
+* Is form edited config interface.
+*/
+interface IsFormEditedConfig {
+  /**
+  * The path to a field. Leave undefined to check the entire form.
+  */
+  readonly path?: undefined;
+}
+/**
+* Is field edited config interface.
+*/
+interface IsFieldEditedConfig<TSchema extends FormSchema$1, TFieldPath extends RequiredPath$1> {
+  /**
+  * The path to the field to check for being edited.
+  */
+  readonly path: ValidPath$1<v.InferInput<TSchema>, TFieldPath>;
+}
+/**
+* Checks whether a specific field or the entire form is edited by walking
+* through the field store and all its descendants. A field is edited once its
+* value has been changed by the user.
+*
+* @param form The form store to check for being edited.
+*
+* @returns Whether the field or form is edited.
+*/
+declare function isEdited<TSchema extends FormSchema$1>(form: BaseFormStore<TSchema>): boolean;
+/**
+* Checks whether a specific field or the entire form is edited by walking
+* through the field store and all its descendants. A field is edited once its
+* value has been changed by the user.
+*
+* @param form The form store to check for being edited.
+* @param config The is edited configuration.
+*
+* @returns Whether the field or form is edited.
+*/
+declare function isEdited<TSchema extends FormSchema$1, TFieldPath extends RequiredPath$1 | undefined = undefined>(form: BaseFormStore<TSchema>, config: TFieldPath extends RequiredPath$1 ? IsFieldEditedConfig<TSchema, TFieldPath> : IsFormEditedConfig): boolean;
+//#endregion
+//#region src/isTouched/isTouched.d.ts
+/**
+* Is form touched config interface.
+*/
+interface IsFormTouchedConfig {
+  /**
+  * The path to a field. Leave undefined to check the entire form.
+  */
+  readonly path?: undefined;
+}
+/**
+* Is field touched config interface.
+*/
+interface IsFieldTouchedConfig<TSchema extends FormSchema$1, TFieldPath extends RequiredPath$1> {
+  /**
+  * The path to the field to check for being touched.
+  */
+  readonly path: ValidPath$1<v.InferInput<TSchema>, TFieldPath>;
+}
+/**
+* Checks whether a specific field or the entire form is touched by walking
+* through the field store and all its descendants. A field is touched once it
+* has received focus or its value has been changed.
+*
+* @param form The form store to check for being touched.
+*
+* @returns Whether the field or form is touched.
+*/
+declare function isTouched<TSchema extends FormSchema$1>(form: BaseFormStore<TSchema>): boolean;
+/**
+* Checks whether a specific field or the entire form is touched by walking
+* through the field store and all its descendants. A field is touched once it
+* has received focus or its value has been changed.
+*
+* @param form The form store to check for being touched.
+* @param config The is touched configuration.
+*
+* @returns Whether the field or form is touched.
+*/
+declare function isTouched<TSchema extends FormSchema$1, TFieldPath extends RequiredPath$1 | undefined = undefined>(form: BaseFormStore<TSchema>, config: TFieldPath extends RequiredPath$1 ? IsFieldTouchedConfig<TSchema, TFieldPath> : IsFormTouchedConfig): boolean;
+//#endregion
+//#region src/isValid/isValid.d.ts
+/**
+* Is form valid config interface.
+*/
+interface IsFormValidConfig {
+  /**
+  * The path to a field. Leave undefined to check the entire form.
+  */
+  readonly path?: undefined;
+}
+/**
+* Is field valid config interface.
+*/
+interface IsFieldValidConfig<TSchema extends FormSchema$1, TFieldPath extends RequiredPath$1> {
+  /**
+  * The path to the field to check for validity.
+  */
+  readonly path: ValidPath$1<v.InferInput<TSchema>, TFieldPath>;
+}
+/**
+* Checks whether a specific field or the entire form is valid by walking
+* through the field store and all its descendants. A field is valid when
+* neither it nor any of its descendants contains an error. Form-level errors
+* are included.
+*
+* @param form The form store to check for validity.
+*
+* @returns Whether the field or form is valid.
+*/
+declare function isValid<TSchema extends FormSchema$1>(form: BaseFormStore<TSchema>): boolean;
+/**
+* Checks whether a specific field or the entire form is valid by walking
+* through the field store and all its descendants. A field is valid when
+* neither it nor any of its descendants contains an error. Form-level errors
+* are included.
+*
+* @param form The form store to check for validity.
+* @param config The is valid configuration.
+*
+* @returns Whether the field or form is valid.
+*/
+declare function isValid<TSchema extends FormSchema$1, TFieldPath extends RequiredPath$1 | undefined = undefined>(form: BaseFormStore<TSchema>, config: TFieldPath extends RequiredPath$1 ? IsFieldValidConfig<TSchema, TFieldPath> : IsFormValidConfig): boolean;
+//#endregion
+//#region src/move/move.d.ts
+/**
+* Move array field config interface.
+*/
+interface MoveConfig<TSchema extends FormSchema$1, TFieldArrayPath extends RequiredPath$1> {
+  /**
+  * The path to the field array to move an item within.
+  */
+  readonly path: ValidArrayPath$1<v.InferInput<TSchema>, TFieldArrayPath>;
+  /**
+  * The index of the item to move from.
+  */
+  readonly from: number;
+  /**
+  * The index to move the item to.
+  */
+  readonly to: number;
+}
+/**
+* Moves an item from one index to another within a field array. All items
+* between the source and destination indices are shifted accordingly.
+*
+* @param form The form store containing the field array.
+* @param config The move configuration specifying the path and source/destination indices.
+*/
+declare function move<TSchema extends FormSchema$1, TFieldArrayPath extends RequiredPath$1>(form: BaseFormStore<TSchema>, config: MoveConfig<TSchema, TFieldArrayPath>): void;
+//#endregion
+//#region src/pickDirty/pickDirty.d.ts
+/**
+* Pick dirty config interface.
+*/
+interface PickDirtyConfig<TValue extends object> {
+  /**
+  * The value to filter down to its dirty parts. Must be structurally
+  * compatible with the form's schema.
+  */
+  readonly from: TValue;
+}
+/**
+* Picks only the dirty parts of the given value, using the form's dirty fields
+* as a structural mask. Arrays are treated as atomic and object keys without a
+* dirty descendant are omitted. Returns `undefined` if no field is dirty.
+* Useful for filtering a validated output down to its changed parts before
+* submitting.
+*
+* @param form The form store providing the dirty mask.
+* @param config The pick dirty configuration.
+*
+* @returns The dirty parts of the value, or `undefined`.
+*/
+declare function pickDirty<TSchema extends FormSchema$1, TValue extends object>(form: BaseFormStore<TSchema>, config: PickDirtyConfig<TValue>): DeepPartial$1<TValue> | undefined;
+//#endregion
+//#region src/remove/remove.d.ts
+/**
+* Remove array field config interface.
+*/
+interface RemoveConfig<TSchema extends FormSchema$1, TFieldArrayPath extends RequiredPath$1> {
+  /**
+  * The path to the field array to remove an item from.
+  */
+  readonly path: ValidArrayPath$1<v.InferInput<TSchema>, TFieldArrayPath>;
+  /**
+  * The index of the item to remove.
+  */
+  readonly at: number;
+}
+/**
+* Removes an item from a field array at the specified index. All items after
+* the removed item are shifted down by one index.
+*
+* @param form The form store containing the field array.
+* @param config The remove configuration specifying the path and index.
+*/
+declare function remove<TSchema extends FormSchema$1, TFieldArrayPath extends RequiredPath$1>(form: BaseFormStore<TSchema>, config: RemoveConfig<TSchema, TFieldArrayPath>): void;
+//#endregion
+//#region src/replace/replace.d.ts
+/**
+* Replace array field config interface.
+*/
+interface ReplaceConfig<TSchema extends FormSchema$1, TFieldArrayPath extends RequiredPath$1> {
+  /**
+  * The path to the field array to replace an item within.
+  */
+  readonly path: ValidArrayPath$1<v.InferInput<TSchema>, TFieldArrayPath>;
+  /**
+  * The index of the item to replace.
+  */
+  readonly at: number;
+  /**
+  * The partial initial input value for the replacement item.
+  */
+  readonly initialInput?: DeepPartial$1<PathValue$1<v.InferInput<TSchema>, [...TFieldArrayPath, number]>> | undefined;
+}
+/**
+* Replaces an item in a field array at the specified index with new initial input.
+*
+* @param form The form store containing the field array.
+* @param config The replace configuration specifying the path, index, and initial input.
+*/
+declare function replace<TSchema extends FormSchema$1, TFieldArrayPath extends RequiredPath$1>(form: BaseFormStore<TSchema>, config: ReplaceConfig<TSchema, TFieldArrayPath>): void;
+//#endregion
+//#region src/reset/reset.d.ts
+/**
+* Reset base config interface.
+*/
+interface ResetBaseConfig {
+  /**
+  * Whether to keep the current input values during reset. Defaults to false.
+  */
+  readonly keepInput?: boolean | undefined;
+  /**
+  * Whether to keep the touched state during reset. Defaults to false.
+  */
+  readonly keepTouched?: boolean | undefined;
+  /**
+  * Whether to keep the edited state during reset. Defaults to false.
+  */
+  readonly keepEdited?: boolean | undefined;
+  /**
+  * Whether to keep the error messages during reset. Defaults to false.
+  */
+  readonly keepErrors?: boolean | undefined;
+}
+/**
+* Reset form config interface.
+*/
+interface ResetFormConfig<TSchema extends FormSchema$1> extends ResetBaseConfig {
+  /**
+  * The path to a field. Leave undefined to reset the entire form.
+  */
+  readonly path?: undefined;
+  /**
+  * The new initial input to reset to. If provided, replaces the form's
+  * initial input.
+  */
+  readonly initialInput?: DeepPartial$1<v.InferInput<TSchema>> | undefined;
+  /**
+  * Whether to keep the submitted state during reset. Defaults to false.
+  */
+  readonly keepSubmitted?: boolean | undefined;
+}
+/**
+* Reset field config interface.
+*/
+interface ResetFieldConfig<TSchema extends FormSchema$1, TFieldPath extends RequiredPath$1> extends ResetBaseConfig {
+  /**
+  * The path to the field to reset.
+  */
+  readonly path: ValidPath$1<v.InferInput<TSchema>, TFieldPath>;
+  /**
+  * The new initial input to reset the field to. If provided, replaces the
+  * field's initial input.
+  */
+  readonly initialInput?: DeepPartial$1<PathValue$1<v.InferInput<TSchema>, TFieldPath>> | undefined;
+}
+/**
+* Resets a specific field or the entire form to its initial state. Provides
+* fine-grained control over which state to preserve during reset through the
+* configuration options.
+*
+* @param form The form store to reset.
+*/
+declare function reset(form: BaseFormStore): void;
+/**
+* Resets a specific field or the entire form to its initial state. Provides
+* fine-grained control over which state to preserve during reset through the
+* configuration options.
+*
+* @param form The form store to reset.
+* @param config The reset configuration specifying what to reset and what to keep.
+*/
+declare function reset<TSchema extends FormSchema$1, TFieldPath extends RequiredPath$1 | undefined = undefined>(form: BaseFormStore<TSchema>, config: TFieldPath extends RequiredPath$1 ? ResetFieldConfig<TSchema, TFieldPath> : ResetFormConfig<TSchema>): void;
+//#endregion
+//#region src/setErrors/setErrors.d.ts
+/**
+* Set form errors config interface.
+*/
+interface SetFormErrorsConfig {
+  /**
+  * The path to a field. Leave undefined to set form-level errors.
+  */
+  readonly path?: undefined;
+  /**
+  * The error messages to set, or null to clear errors.
+  */
+  readonly errors: [string, ...string[]] | null;
+}
+/**
+* Set field errors config interface.
+*/
+interface SetFieldErrorsConfig<TSchema extends FormSchema$1, TFieldPath extends RequiredPath$1> {
+  /**
+  * The path to the field to set errors on.
+  */
+  readonly path: ValidPath$1<v.InferInput<TSchema>, TFieldPath>;
+  /**
+  * The error messages to set, or null to clear errors.
+  */
+  readonly errors: [string, ...string[]] | null;
+}
+/**
+* Sets or clears error messages on the form or a specific field. This is
+* useful for setting custom validation errors that don't come from schema
+* validation.
+*
+* @param form The form store to set errors on.
+* @param config The set errors configuration specifying the path and error messages.
+*/
+declare function setErrors<TSchema extends FormSchema$1, TFieldPath extends RequiredPath$1 | undefined = undefined>(form: BaseFormStore<TSchema>, config: TFieldPath extends RequiredPath$1 ? SetFieldErrorsConfig<TSchema, TFieldPath> : SetFormErrorsConfig): void;
+//#endregion
+//#region src/setInput/setInput.d.ts
+/**
+* Set form input config interface.
+*/
+interface SetFormInputConfig<TSchema extends FormSchema$1> {
+  /**
+  * The path to a field. Leave undefined to set the entire form input.
+  */
+  readonly path?: undefined;
+  /**
+  * The input value to set for the form.
+  */
+  readonly input: v.InferInput<TSchema>;
+}
+/**
+* Set field input config interface.
+*/
+interface SetFieldInputConfig<TSchema extends FormSchema$1, TFieldPath extends RequiredPath$1> {
+  /**
+  * The path to the field to set input on.
+  */
+  readonly path: ValidPath$1<v.InferInput<TSchema>, TFieldPath>;
+  /**
+  * The input value to set for the field.
+  */
+  readonly input: PathValue$1<v.InferInput<TSchema>, TFieldPath>;
+}
+/**
+* Sets the input value of a specific field or the entire form. This updates
+* the field value(s) and triggers validation if required by the form's
+* validation mode.
+*
+* @param form The form store to set input on.
+* @param config The set form input configuration specifying the new input values.
+*/
+declare function setInput<TSchema extends FormSchema$1>(form: BaseFormStore<TSchema>, config: SetFormInputConfig<TSchema>): void;
+/**
+* Sets the input value of a specific field or the entire form. This updates
+* the field value(s) and triggers validation if required by the form's
+* validation mode.
+*
+* @param form The form store to set input on.
+* @param config The set input configuration specifying the path and new value.
+*/
+declare function setInput<TSchema extends FormSchema$1, TFieldPath extends RequiredPath$1 | undefined = undefined>(form: BaseFormStore<TSchema>, config: TFieldPath extends RequiredPath$1 ? SetFieldInputConfig<TSchema, TFieldPath> : SetFormInputConfig<TSchema>): void;
+//#endregion
+//#region src/submit/submit.d.ts
+/**
+* Programmatically requests form submission by calling the native
+* `requestSubmit()` method on the underlying form element.
+*
+* @param form The form store to submit.
+*/
+declare function submit(form: BaseFormStore): void;
+//#endregion
+//#region src/swap/swap.d.ts
+/**
+* Swap array field config interface.
+*/
+interface SwapConfig<TSchema extends FormSchema$1, TFieldArrayPath extends RequiredPath$1> {
+  /**
+  * The path to the field array to swap items within.
+  */
+  readonly path: ValidArrayPath$1<v.InferInput<TSchema>, TFieldArrayPath>;
+  /**
+  * The index of the first item to swap.
+  */
+  readonly at: number;
+  /**
+  * The index of the second item to swap with the first.
+  */
+  readonly and: number;
+}
+/**
+* Swaps two items in a field array by exchanging their positions.
+*
+* @param form The form store containing the field array.
+* @param config The swap configuration specifying the path and indices to swap.
+*/
+declare function swap<TSchema extends FormSchema$1, TFieldArrayPath extends RequiredPath$1>(form: BaseFormStore<TSchema>, config: SwapConfig<TSchema, TFieldArrayPath>): void;
+//#endregion
+//#region src/validate/validate.d.ts
+/**
+* Validate form config interface.
+*/
+interface ValidateFormConfig {
+  /**
+  * Whether to focus the first field with errors after validation. Defaults to false.
+  */
+  readonly shouldFocus?: boolean | undefined;
+}
+/**
+* Validates the entire form input against its schema. Returns a safe parse result
+* indicating success or failure with detailed issues. Optionally focuses the first
+* field with validation errors.
+*
+* @param form The form store to validate.
+* @param config The validate form configuration specifying focus behavior.
+*
+* @returns A promise resolving to the validation result.
+*/
+declare function validate<TSchema extends FormSchema$1>(form: BaseFormStore<TSchema>, config?: ValidateFormConfig): Promise<v.SafeParseResult<TSchema>>;
+//#endregion
+//#endregion
+//#region src/types/field.d.ts
+/**
+ * Field element props interface.
+ */
+interface FieldElementProps {
+  /**
+   * The name of the field.
+   */
+  readonly name: string;
+  /**
+   * Whether the field should autofocus.
+   */
+  readonly autofocus: boolean;
+  /**
+   * The ref callback to register the field element.
+   */
+  readonly ref: (element: Element | ComponentPublicInstance | null) => void;
+  /**
+   * The focus event handler of the field element.
+   */
+  readonly onFocus: () => void;
+  /**
+   * The change event handler of the field element.
+   */
+  readonly onChange: (event: Event) => void;
+  /**
+   * The blur event handler of the field element.
+   */
+  readonly onBlur: () => void;
+}
+/**
+ * Field store interface.
+ */
+interface FieldStore<TSchema extends FormSchema$1 = FormSchema$1, TFieldPath extends RequiredPath$1 = RequiredPath$1> {
+  /**
+   * The path to the field within the form.
+   */
+  readonly path: ValidPath$1<v.InferInput<TSchema>, TFieldPath>;
+  /**
+   * The current input value of the field.
+   */
+  get input(): PartialValues$1<PathValue$1<v.InferInput<TSchema>, TFieldPath>>;
+  /**
+   * Sets the current input value of the field.
+   */
+  set input(value: PartialValues$1<PathValue$1<v.InferInput<TSchema>, TFieldPath>>);
+  /**
+   * The current error messages of the field.
+   */
+  readonly errors: [string, ...string[]] | null;
+  /**
+   * Whether the field has been touched.
+   */
+  readonly isTouched: boolean;
+  /**
+   * Whether the field value has been edited.
+   */
+  readonly isEdited: boolean;
+  /**
+   * Whether the field input differs from its initial value.
+   */
+  readonly isDirty: boolean;
+  /**
+   * Whether the field is valid according to the schema.
+   */
+  readonly isValid: boolean;
+  /**
+   * The props for the field element.
+   */
+  readonly props: FieldElementProps;
+}
+/**
+ * Field array store interface.
+ */
+interface FieldArrayStore<TSchema extends FormSchema$1 = FormSchema$1, TFieldArrayPath extends RequiredPath$1 = RequiredPath$1> {
+  /**
+   * The path to the array field within the form.
+   */
+  readonly path: ValidArrayPath$1<v.InferInput<TSchema>, TFieldArrayPath>;
+  /**
+   * The item IDs of the array field.
+   */
+  readonly items: string[];
+  /**
+   * The current error messages of the field array.
+   */
+  readonly errors: [string, ...string[]] | null;
+  /**
+   * Whether the field array has been touched.
+   */
+  readonly isTouched: boolean;
+  /**
+   * Whether the field array value has been edited.
+   */
+  readonly isEdited: boolean;
+  /**
+   * Whether the field array input differs from its initial value.
+   */
+  readonly isDirty: boolean;
+  /**
+   * Whether the field array is valid according to the schema.
+   */
+  readonly isValid: boolean;
+}
+//#endregion
+//#region src/types/form.d.ts
+/**
+ * Form store interface.
+ */
+interface FormStore<TSchema extends FormSchema$1 = FormSchema$1> extends BaseFormStore<TSchema> {
+  /**
+   * Whether the form is currently submitting.
+   */
+  readonly isSubmitting: boolean;
+  /**
+   * Whether the form has been submitted.
+   */
+  readonly isSubmitted: boolean;
+  /**
+   * Whether the form is currently validating.
+   */
+  readonly isValidating: boolean;
+  /**
+   * Whether any field in the form has been touched.
+   */
+  readonly isTouched: boolean;
+  /**
+   * Whether any field in the form has been edited.
+   */
+  readonly isEdited: boolean;
+  /**
+   * Whether any field in the form differs from its initial value.
+   */
+  readonly isDirty: boolean;
+  /**
+   * Whether the form is valid according to the schema.
+   */
+  readonly isValid: boolean;
+  /**
+   * The current error messages of the form.
+   *
+   * Hint: This property only contains validation errors at the root level
+   * of the form. To get all errors from all fields, use `getDeepErrors`.
+   */
+  readonly errors: [string, ...string[]] | null;
+}
+//#endregion
+//#region src/components/Field/Field.vue.d.ts
+/**
+ * Field component props interface.
+ */
+interface FieldProps<TSchema extends FormSchema$1 = FormSchema$1, TFieldPath extends RequiredPath$1 = RequiredPath$1> {
+  /**
+   * The form store to which the field belongs.
+   */
+  readonly of: FormStore<TSchema>;
+  /**
+   * The path to the field within the form schema.
+   */
+  readonly path: ValidPath$1<v.InferInput<TSchema>, TFieldPath>;
+}
+declare const __VLS_export$2: <TSchema extends FormSchema$1, TFieldPath extends RequiredPath$1>(__VLS_props: NonNullable<Awaited<typeof __VLS_setup>>["props"], __VLS_ctx?: __VLS_PrettifyLocal$2<Pick<NonNullable<Awaited<typeof __VLS_setup>>, "attrs" | "emit" | "slots">>, __VLS_expose?: NonNullable<Awaited<typeof __VLS_setup>>["expose"], __VLS_setup?: Promise<{
+  props: __VLS_PrettifyLocal$2<FieldProps<TSchema, TFieldPath>> & vue3.PublicProps;
+  expose: (exposed: {}) => void;
+  attrs: any;
+  slots: {
+    default(props: FieldStore<TSchema, TFieldPath>): any;
+  };
+  emit: {};
+}>) => vue3.VNode & {
+  __ctx?: Awaited<typeof __VLS_setup>;
+};
+declare const _default: typeof __VLS_export$2;
+type __VLS_PrettifyLocal$2<T> = { [K in keyof T as K]: T[K] } & {};
+//#endregion
+//#region src/components/FieldArray/FieldArray.vue.d.ts
+/**
+ * Field array component props interface.
+ */
+interface FieldArrayProps<TSchema extends FormSchema$1 = FormSchema$1, TFieldArrayPath extends RequiredPath$1 = RequiredPath$1> {
+  /**
+   * The form store to which the field array belongs.
+   */
+  readonly of: FormStore<TSchema>;
+  /**
+   * The path to the field array within the form schema.
+   */
+  readonly path: ValidArrayPath$1<v.InferInput<TSchema>, TFieldArrayPath>;
+}
+declare const __VLS_export$1: <TSchema extends FormSchema$1, TFieldArrayPath extends RequiredPath$1>(__VLS_props: NonNullable<Awaited<typeof __VLS_setup>>["props"], __VLS_ctx?: __VLS_PrettifyLocal$1<Pick<NonNullable<Awaited<typeof __VLS_setup>>, "attrs" | "emit" | "slots">>, __VLS_expose?: NonNullable<Awaited<typeof __VLS_setup>>["expose"], __VLS_setup?: Promise<{
+  props: __VLS_PrettifyLocal$1<FieldArrayProps<TSchema, TFieldArrayPath>> & vue3.PublicProps;
+  expose: (exposed: {}) => void;
+  attrs: any;
+  slots: {
+    default(props: FieldArrayStore<TSchema, TFieldArrayPath>): any;
+  };
+  emit: {};
+}>) => vue3.VNode & {
+  __ctx?: Awaited<typeof __VLS_setup>;
+};
+declare const _default$1: typeof __VLS_export$1;
+type __VLS_PrettifyLocal$1<T> = { [K in keyof T as K]: T[K] } & {};
+//#endregion
+//#region src/components/Form/Form.vue.d.ts
+/**
+ * Form component props interface.
+ */
+interface FormProps<TSchema extends FormSchema$1 = FormSchema$1> {
+  /**
+   * The form store instance.
+   */
+  of: FormStore<TSchema>;
+  /**
+   * The submit handler called when the form is submitted and validation succeeds.
+   */
+  onSubmit: SubmitEventHandler$1<TSchema>;
+}
+declare const __VLS_export: <TSchema extends FormSchema$1 = FormSchema$1>(__VLS_props: NonNullable<Awaited<typeof __VLS_setup>>["props"], __VLS_ctx?: __VLS_PrettifyLocal<Pick<NonNullable<Awaited<typeof __VLS_setup>>, "attrs" | "emit" | "slots">>, __VLS_expose?: NonNullable<Awaited<typeof __VLS_setup>>["expose"], __VLS_setup?: Promise<{
+  props: __VLS_PrettifyLocal<FormProps<TSchema>> & vue3.PublicProps;
+  expose: (exposed: {}) => void;
+  attrs: any;
+  slots: {
+    default?: (props: {}) => any;
+  };
+  emit: {};
+}>) => vue3.VNode & {
+  __ctx?: Awaited<typeof __VLS_setup>;
+};
+declare const _default$2: typeof __VLS_export;
+type __VLS_PrettifyLocal<T> = { [K in keyof T as K]: T[K] } & {};
+//#endregion
+//#region src/composables/useField/useField.d.ts
+/**
+ * Use field config interface.
+ */
+interface UseFieldConfig<TSchema extends FormSchema$1 = FormSchema$1, TFieldPath extends RequiredPath$1 = RequiredPath$1> {
+  /**
+   * The path to the field within the form schema.
+   */
+  readonly path: ValidPath$1<v.InferInput<TSchema>, TFieldPath>;
+}
+/**
+ * Creates a reactive field store for a specific field within a form store.
+ *
+ * @param form The form store instance, ref, or getter function.
+ * @param config The field configuration, ref, or getter function.
+ *
+ * @returns The field store with reactive properties and element props.
+ */
+declare function useField<TSchema extends FormSchema$1, TFieldPath extends RequiredPath$1>(form: MaybeRefOrGetter<FormStore<TSchema>>, config: MaybeRefOrGetter<UseFieldConfig<TSchema, TFieldPath>>): FieldStore<TSchema, TFieldPath>;
+//#endregion
+//#region src/composables/useFieldArray/useFieldArray.d.ts
+/**
+ * Use field array config interface.
+ */
+interface UseFieldArrayConfig<TSchema extends FormSchema$1 = FormSchema$1, TFieldArrayPath extends RequiredPath$1 = RequiredPath$1> {
+  /**
+   * The path to the field array within the form schema.
+   */
+  readonly path: ValidArrayPath$1<v.InferInput<TSchema>, TFieldArrayPath>;
+}
+/**
+ * Creates a reactive field array store for a specific field array within a form store.
+ *
+ * @param form The form store instance, ref, or getter function.
+ * @param config The field array configuration, ref, or getter function.
+ *
+ * @returns The field array store with reactive properties for array management.
+ */
+declare function useFieldArray<TSchema extends FormSchema$1, TFieldArrayPath extends RequiredPath$1>(form: MaybeRefOrGetter<FormStore<TSchema>>, config: MaybeRefOrGetter<UseFieldArrayConfig<TSchema, TFieldArrayPath>>): FieldArrayStore<TSchema, TFieldArrayPath>;
+//#endregion
+//#region src/composables/useForm/useForm.d.ts
+/**
+ * Creates a reactive form store from a form configuration. The form store
+ * manages form state and provides reactive properties.
+ *
+ * @param config The form configuration.
+ *
+ * @returns The form store with reactive properties.
+ */
+declare function useForm<TSchema extends FormSchema$1>(config: FormConfig$1<TSchema>): FormStore<TSchema>;
+//#endregion
+export { DeepErrorEntry, type DeepPartial, _default as Field, _default$1 as FieldArray, FieldArrayStore, type FieldElement, FieldElementProps, FieldStore, FocusFieldConfig, _default$2 as Form, type FormConfig, type FormSchema, FormStore, GetFieldDeepErrorConfig, GetFieldDeepErrorEntriesConfig, GetFieldDeepErrorEntryConfig, GetFieldDeepErrorsConfig, GetFieldDirtyInputConfig, GetFieldDirtyPathsConfig, GetFieldErrorsConfig, GetFieldInputConfig, GetFormDeepErrorConfig, GetFormDeepErrorEntriesConfig, GetFormDeepErrorEntryConfig, GetFormDeepErrorsConfig, GetFormDirtyInputConfig, GetFormDirtyPathsConfig, GetFormErrorsConfig, GetFormInputConfig, InsertConfig, IsFieldDirtyConfig, IsFieldEditedConfig, IsFieldTouchedConfig, IsFieldValidConfig, IsFormDirtyConfig, IsFormEditedConfig, IsFormTouchedConfig, IsFormValidConfig, MoveConfig, type PartialValues, type PathValue, PickDirtyConfig, RemoveConfig, ReplaceConfig, type RequiredPath, ResetFieldConfig, ResetFormConfig, type Schema, SetFieldErrorsConfig, SetFieldInputConfig, SetFormErrorsConfig, SetFormInputConfig, type SubmitEventHandler, type SubmitHandler, SwapConfig, UseFieldArrayConfig, UseFieldConfig, type ValidArrayPath, type ValidPath, ValidateFormConfig, type ValidationMode, focus, getDeepError, getDeepErrorEntries, getDeepErrorEntry, getDeepErrors, getDirtyInput, getDirtyPaths, getErrors, getInput, handleSubmit, insert, isDirty, isEdited, isTouched, isValid, move, pickDirty, remove, replace, reset, setErrors, setInput, submit, swap, useField, useFieldArray, useForm, validate };

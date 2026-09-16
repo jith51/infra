@@ -20,9 +20,9 @@ module App
         argument :front_image, ::Types::FileType, required: false
         argument :back_image, ::Types::FileType, required: false
         argument :custom_attributes, GraphQL::Types::JSON, required: false
-        argument :custom_attributes_definition, [::App::Physical::Arguments::CustomAttribute], required: false
-        argument :components, [::App::Physical::Arguments::Component], required: false, prepare: ->(value, _ctx) { value.map(&:to_h) }
-        argument :ports, [::App::Physical::Arguments::Port], required: false, prepare: ->(value, _ctx) { value.map(&:to_h) }
+        argument :custom_attributes_definition, [::App::Physical::Arguments::CustomAttributesDefinition], required: false
+        argument :component_slots, [::App::Physical::Arguments::ComponentSlot], required: false, as: :component_slots_attributes, prepare: ->(value, _ctx) { value.map(&:to_h) }
+        argument :port_slots, [::App::Physical::Arguments::PortSlot], required: false, as: :port_slots_attributes, prepare: ->(value, _ctx) { value.map(&:to_h) }
       end
     end
   end

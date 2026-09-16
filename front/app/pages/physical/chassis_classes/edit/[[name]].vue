@@ -3,7 +3,7 @@
         v-if="!hasError"
         :chassisClass="chassisClass"
         :chassisPowertypes="queryResult?.chassisPowertypes as ChassisPowertypeType[]||[] "
-        @chassisUpdated="(v) => {
+        @chassisClassUpdated="(v) => {
             navigateTo(`/physical/chassis_classes/edit/${v.name}`)
         }"
     />
@@ -17,7 +17,8 @@
 
     // Récupération du param id de la route
     const route = useRoute()
-    const chassis_class_name_or_id = route.params.name as string
+
+    const chassisClassNameOrId = route.params.name as string
 
     const hasError = ref(false)
 
@@ -26,12 +27,19 @@
     onQueryError(() => {
         // si un nom ou id est passé mais qu'il n'existe pas
         // TODO --> à développer pour etre plus precis
-        if (chassis_class_name_or_id != '') {
+        if (chassisClassNameOrId) {
             hasError.value = true
-            toast('Classe de chassis non existante.')
+            toast('Erreur de récupération des données.')
         }
     })
-    await loadQuery(chassis_class_name_or_id)
+
+    await loadQuery(chassisClassNameOrId)
+    
+    if (!queryResult?.value?.chassisClass && chassisClassNameOrId) {
+        debugger
+        hasError.value = true
+        toast('Classe de chassis non existante.')
+    }
 
     const chassisClass = computed(() => {
         if (queryResult.value?.chassisClass == null) return undefined

@@ -20,7 +20,11 @@ class CustomAttributesValidator < ActiveModel::Validator
     # Si pas d'association alors ok
     return if association.blank?
 
-    definitions = association.self_and_ancestors.map(&:custom_attributes).reduce({}, :merge) || {}
+    definitions =
+      (association.respond_to?(:self_and_ancestors) ? association.self_and_ancestors : Array(association))
+      .filter_map(&:custom_attributes_definition)
+      .reduce({}, :merge)
+    # definitions = association.self_and_ancestors.map(&:custom_attributes_definition).reduce({}, :merge) || {}
     values = record.custom_attributes || {}
 
     # Si pas de définitions et pas de valeurs alors ok

@@ -2,7 +2,8 @@
 
 # Tag
 class Tag < ActiveRecord::Base
-  has_many :tags_attachments
+  has_many :tags_attachments, dependent: :destroy, foreign_key: :tag_id
+  # has_many :taggables, through: :tags_attachments, source: :taggable
 
   def self.with_counter_for(thing_to_count)
     Tag
@@ -12,12 +13,19 @@ class Tag < ActiveRecord::Base
       .group(:id, :name)
   end
 
-  def self.to_type(thing_to_count)
-    case thing_to_count
-    when 'chassis'
-      'Physical::Chassis'
-    else
-      'Inconnu'
-    end
+  TAGGABLE_TYPES = {
+    'chassis' => 'Physical::Chassis'
+  }.freeze
+
+  def self.to_type(type)
+    TAGGABLE_TYPES.fetch(type)
   end
+  # def self.to_type(thing_to_count)
+  #   case thing_to_count
+  #   when 'chassis'
+  #     'Physical::Chassis'
+  #   else
+  #     'Inconnu'
+  #   end
+  # end
 end

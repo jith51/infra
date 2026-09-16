@@ -33,8 +33,8 @@ module Excel
         build_chassis_classes_sheet
         build_powertype_sheets
         build_custom_attributes_definition_sheet
-        build_components_sheet
-        build_ports_sheet
+        build_component_slots_sheet
+        build_port_slots_sheet
       end
 
       def build_chassis_classes_sheet
@@ -48,6 +48,7 @@ module Excel
           next if @headers[powertype.name].blank?
 
           @sheets[powertype.name] = @workbook.add_worksheet(name: powertype.name)
+
           @sheets[powertype.name].add_row(@headers[powertype.name])
         end
       end
@@ -57,12 +58,12 @@ module Excel
         @sheets['CustomAttributesDefinition'].add_row(@headers['CustomAttributesDefinition'])
       end
 
-      def build_components_sheet
+      def build_component_slots_sheet
         @sheets['Composants'] = @workbook.add_worksheet(name: 'Composants')
         @sheets['Composants'].add_row(@headers['Composants'])
       end
 
-      def build_ports_sheet
+      def build_port_slots_sheet
         @sheets['Ports'] = @workbook.add_worksheet(name: 'Ports')
         @sheets['Ports'].add_row(@headers['Ports'])
       end
@@ -70,8 +71,8 @@ module Excel
       def fill_sheets
         scope = Physical::ChassisClass.includes(
           :chassis_powertype,
-          components: :component_type,
-          ports: :port_type
+          component_slots: :component_type,
+          port_slots: :port_type
         )
 
         scope = scope.where(chassis_powertype_id: chassis_powertype_id) if chassis_powertype_id.present?
@@ -80,8 +81,8 @@ module Excel
           add_chassis_class_row(chassis_class)
           add_custom_attributes_row(chassis_class)
           add_custom_attributes_definition_rows(chassis_class)
-          add_component_rows(chassis_class)
-          add_port_rows(chassis_class)
+          add_component_slot_rows(chassis_class)
+          add_port_slot_rows(chassis_class)
         end
       end
 
@@ -107,8 +108,8 @@ module Excel
         end
       end
 
-      def add_component_rows(chassis_class)
-        chassis_class.components.each do |component|
+      def add_component_slot_rows(chassis_class)
+        chassis_class.component_slots.each do |component|
           attributes = component.attributes.merge(
             'chassis_class_name' => chassis_class.name, 'type' => component.component_type&.name
           )
@@ -116,8 +117,8 @@ module Excel
         end
       end
 
-      def add_port_rows(chassis_class)
-        chassis_class.ports.each do |port|
+      def add_port_slot_rows(chassis_class)
+        chassis_class.port_slots.each do |port|
           attributes = port.attributes.merge(
             'chassis_class_name' => chassis_class.name, 'type' => port.port_type&.name
           )

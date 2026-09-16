@@ -9,8 +9,6 @@ module App
 
         implements ::App::Physical::Types::Interfaces::ChassisClassInterface
 
-        # field :id, String, null: false
-        # field :name, String, null: false
         field :chassis_powertype_id, String, null: true
         field :chassis_powertype, ::App::Physical::Types::ChassisPowertype
         field :fournisseur, String, null: true
@@ -23,17 +21,19 @@ module App
         field :front_image, String, null: true
         field :back_image, String, null: true
         field :custom_attributes, GraphQL::Types::JSON, null: false
+        # Field suivant pour récupérer toutes les définitions des custom attributes
+        field :all_custom_attributes_definition, GraphQL::Types::JSON, null: false
         field :custom_attributes_definition, [GraphQL::Types::JSON], null: false
-        field :components, [::App::Physical::Types::Component]
-        field :ports, [::App::Physical::Types::Port]
+        field :component_slots, [::App::Physical::Types::ComponentSlot]
+        field :port_slots, [::App::Physical::Types::PortSlot]
 
-        def front_image
-          object.front_image_url_path
-        end
+        # def front_image
+        #   object.front_image_url_path
+        # end
 
-        def back_image
-          object.back_image_url_path
-        end
+        # def back_image
+        #   object.back_image_url_path
+        # end
 
         def custom_attributes_definition
           # On passe de {key1: {label:'', type:''}, key2: {label:'', type:''}}
@@ -41,6 +41,12 @@ module App
           object.custom_attributes_definition.map do |name, attrs|
             attrs.symbolize_keys.merge(name: name)
           end
+        end
+
+        def all_custom_attributes_definition
+          # On passe tous les ca sous la forme {key1: {label:'', type:''}, key2: {label:'', type:''}}
+          chassis_powertypes = object.chassis_powertype&.self_and_ancestors || []
+          chassis_powertypes.map(&:custom_attributes_definition).reduce({}, & :merge)
         end
       end
     end

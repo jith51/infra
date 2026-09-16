@@ -3,12 +3,16 @@
 module Physical
   # Port
   class Port < ActiveRecord::Base
-    belongs_to :port_type, required: false
-    belongs_to :host, polymorphic: true
+    belongs_to :port_type, optional: true
+    belongs_to :chassis
 
-    # has_one :connection, foreign_key: :local_id, dependent: :destroy
-    # accepts_nested_attributes_for :connection, allow_destroy: true
+    has_one :connection, foreign_key: :local_port_id, inverse_of: :local_port, dependent: :destroy
+    accepts_nested_attributes_for :connection, allow_destroy: true
 
-    validates :name, presence: true, uniqueness: { scope: %i[host_id host_type] }
+    has_one :connected_port, through: :connection, source: :distant_port
+
+    has_one :connected_chassis, through: :connected_port, source: :chassis
+
+    validates :name, presence: true, uniqueness: { scope: :chassis_id }
   end
 end

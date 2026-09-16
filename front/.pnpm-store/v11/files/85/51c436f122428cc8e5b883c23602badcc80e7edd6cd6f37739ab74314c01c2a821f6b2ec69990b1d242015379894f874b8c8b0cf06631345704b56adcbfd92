@@ -1,0 +1,822 @@
+import * as v from "valibot";
+import { ShallowRef as Signal, shallowRef as createSignal } from "vue";
+
+//#region src/types/utils/utils.d.ts
+/**
+* Checks if a type is `any`.
+*/
+type IsAny<T> = 0 extends 1 & T ? true : false;
+/**
+* Checks if a type is `never`.
+*/
+type IsNever<T> = [T] extends [never] ? true : false;
+/**
+* Constructs a type that is maybe a promise.
+*/
+type MaybePromise<T> = T | Promise<T>;
+/**
+* Makes all properties deeply optional.
+*/
+type DeepPartial<TValue> = TValue extends Record<PropertyKey, unknown> | readonly unknown[] ? { [TKey in keyof TValue]?: DeepPartial<TValue[TKey]> | undefined } : TValue | undefined;
+/**
+* Makes all value properties optional.
+*
+* Hint: For dynamic arrays, only plain objects and nested arrays have their
+* values made optional. Primitives and class instances are kept as-is to avoid
+* types like `(string | undefined)[]`.
+*/
+type PartialValues<TValue> = TValue extends readonly (infer TItem)[] ? number extends TValue["length"] ? (TItem extends Record<PropertyKey, unknown> | readonly unknown[] ? { [TKey in keyof TItem]: PartialValues<TItem[TKey]> } : TItem)[] : { [TKey in keyof TValue]: PartialValues<TValue[TKey]> } : TValue extends Record<PropertyKey, unknown> ? { [TKey in keyof TValue]: PartialValues<TValue[TKey]> } : TValue | undefined;
+//#endregion
+//#region src/types/path/path.d.ts
+/**
+* Path key type.
+*/
+type PathKey = string | number;
+/**
+* Path type.
+*/
+type Path = readonly PathKey[];
+/**
+* Required path type.
+*/
+type RequiredPath = readonly [PathKey, ...Path];
+/**
+* Extracts the exact keys of a tuple, array or object. Tuples return their
+* literal numeric indices, dynamic arrays return `number`, objects return
+* their `keyof` keys, and any other input returns `never`.
+*/
+type ExactKeysOf<TValue> = IsAny<TValue> extends true ? never : TValue extends readonly unknown[] ? number extends TValue["length"] ? number : { [TKey in keyof TValue]: TKey extends `${infer TIndex extends number}` ? TIndex : never }[number] : TValue extends Record<PropertyKey, unknown> ? keyof TValue & PathKey : never;
+/**
+* Returns the flat object of all indexable properties of `TValue`. For object
+* unions, properties from every member are merged so that any single property
+* is accessible. For primitives and other non-indexable types, the result is
+* `{}`.
+*
+* Hint: This is necessary to make properties accessible across union members.
+* By default, properties that do not exist in all union options are not
+* accessible and result in "any" when accessed.
+*/
+type PropertiesOf<TValue> = { [TKey in ExactKeysOf<TValue>]: TValue extends Record<TKey, infer TItem> ? TItem : never };
+/**
+* Lazily evaluates only the first valid path segment based on the given value.
+*/
+type LazyPath<TValue, TPathToCheck extends Path, TValidPath extends Path = readonly []> = TPathToCheck extends readonly [] ? TValidPath : TPathToCheck extends readonly [infer TFirstKey extends ExactKeysOf<TValue>, ...infer TPathRest extends Path] ? LazyPath<Required<PropertiesOf<TValue>[TFirstKey]>, TPathRest, readonly [...TValidPath, TFirstKey]> : IsNever<ExactKeysOf<TValue>> extends false ? readonly [...TValidPath, ExactKeysOf<TValue>] : TValidPath;
+/**
+* Returns the path if valid, otherwise the first possible valid path based on
+* the given value.
+*/
+type ValidPath<TValue, TPath extends RequiredPath> = TPath extends LazyPath<Required<TValue>, TPath> ? TPath : LazyPath<Required<TValue>, TPath>;
+/**
+* Detects whether the consuming project is configured with
+* `exactOptionalPropertyTypes: true`.
+*
+* Hint: If `false` the built-in `Required<T>` strips `| undefined` from
+* optional properties, so `Required<{ key?: undefined }>['key']` collapses
+* to `never` — under strict mode the same expression yields `undefined`.
+*/
+type IsExactOptionalProps = Required<{
+  key?: undefined;
+}>["key"] extends never ? false : true;
+/**
+* Like the built-in `Required<T>`, but preserves `| undefined` in two
+* places where `Required<T>` strips it:
+*
+* 1. Optional property values under `exactOptionalPropertyTypes: false`
+*    — without this, input typings for `v.optional`/`v.nullish` schemas
+*    narrow incorrectly (issue #15).
+* 2. Array/tuple element types — e.g. `(string | undefined)[]` stays
+*    `(string | undefined)[]` instead of becoming `string[]`. Arrays
+*    fall through unchanged because they only have a numeric index
+*    signature and don't structurally extend `Record<PropertyKey,
+*    unknown>` (which requires string keys).
+*/
+type ExactRequired<TValue> = TValue extends Record<PropertyKey, unknown> ? IsExactOptionalProps extends true ? Required<TValue> : { [TKey in keyof Required<TValue>]: TValue[TKey] } : TValue;
+/**
+* Extracts the value type at the given path.
+*/
+type PathValue<TValue, TPath extends Path> = TPath extends readonly [infer TKey, ...infer TRest extends Path] ? TKey extends ExactKeysOf<ExactRequired<TValue>> ? PathValue<PropertiesOf<ExactRequired<TValue>>[TKey], TRest> : unknown : TValue;
+/**
+* Checks whether a value is a dynamic array or contains one anywhere in its
+* shape. A fixed-length tuple is not itself a dynamic array, but it counts when
+* it contains one, so paths can still navigate through tuples to reach nested
+* arrays.
+*
+* Hint: The inner conditionals (`TValue extends readonly unknown[]` and
+* `TValue extends Record<PropertyKey, unknown>`) distribute over union members,
+* so the inner expression returns the union of each member's result (e.g.
+* `true | false` when some members contain arrays and others don't).
+* Downstream code uses `IsOrHasArray<T> extends true`, but
+* `boolean extends true` is `false` — so we collapse the result via
+* `true extends ...`, which is `true` whenever at least one union member
+* contributed `true`.
+*/
+type IsOrHasArray<TValue> = true extends (IsAny<TValue> extends true ? false : TValue extends readonly unknown[] ? number extends TValue["length"] ? true : IsOrHasArray<TValue[number]> : TValue extends Record<PropertyKey, unknown> ? { [TKey in keyof TValue]: IsOrHasArray<TValue[TKey]> }[keyof TValue] : false) ? true : false;
+/**
+* Extracts the exact keys of a tuple, array or object that contain arrays.
+*/
+type ExactKeysOfArrayPath<TValue> = IsAny<TValue> extends true ? never : TValue extends readonly (infer TItem)[] ? number extends TValue["length"] ? IsOrHasArray<TItem> extends true ? number : never : { [TKey in keyof TValue]: TKey extends `${infer TIndex extends number}` ? IsOrHasArray<NonNullable<TValue[TKey]>> extends true ? TIndex : never : never }[number] : TValue extends Record<PropertyKey, unknown> ? { [TKey in keyof TValue]: IsOrHasArray<NonNullable<TValue[TKey]>> extends true ? TKey : never }[keyof TValue] & PathKey : never;
+/**
+* Returns the flat object of indexable properties of `TValue` whose values
+* are or contain arrays. Mirrors `PropertiesOf` but keyed by
+* `ExactKeysOfArrayPath` so the lookup is provably valid for array-path
+* navigation in `LazyArrayPath`.
+*/
+type PropertiesOfArrayPath<TValue> = { [TKey in ExactKeysOfArrayPath<TValue>]: TValue extends Record<TKey, infer TItem> ? TItem : never };
+/**
+* Lazily evaluates only the first valid array path segment based on the given value.
+*/
+type LazyArrayPath<TValue, TPathToCheck extends Path, TValidPath extends Path = readonly []> = TPathToCheck extends readonly [] ? TValue extends readonly unknown[] ? number extends TValue["length"] ? TValidPath : IsNever<ExactKeysOfArrayPath<TValue>> extends false ? readonly [...TValidPath, ExactKeysOfArrayPath<TValue>] : never : readonly [...TValidPath, ExactKeysOfArrayPath<TValue>] : TPathToCheck extends readonly [infer TFirstKey extends ExactKeysOfArrayPath<TValue>, ...infer TPathRest extends Path] ? LazyArrayPath<Required<PropertiesOfArrayPath<TValue>[TFirstKey]>, TPathRest, readonly [...TValidPath, TFirstKey]> : IsNever<ExactKeysOfArrayPath<TValue>> extends false ? readonly [...TValidPath, ExactKeysOfArrayPath<TValue>] : never;
+/**
+* Returns the path if valid, otherwise the first possible valid array path
+* based on the given value.
+*/
+type ValidArrayPath<TValue, TPath extends RequiredPath> = TPath extends LazyArrayPath<Required<TValue>, TPath> ? TPath : LazyArrayPath<Required<TValue>, TPath>;
+/**
+* Recursive helper for `DirtyPath` that prepends `TKey` to each deeper path,
+* or falls through to `never` when the child is not an object.
+*/
+type DeepDirtyPath<TChild, TKey$1 extends PathKey, TDepth extends 0[]> = TChild extends Record<PropertyKey, unknown> ? readonly [TKey$1, ...DirtyPath<TChild, [...TDepth, 0]>] : never;
+/**
+* Returns the union of all `RequiredPath`s that `getDirtyPaths` can emit
+* for a given input type. Object fields contribute their own path and the
+* paths of their descendants; arrays and tuples are atomic and contribute
+* only their own path, because dirty arrays are returned as complete units.
+*
+* Narrowing is exact for the first 5 levels of nesting; deeper paths fall
+* back to `RequiredPath` to keep the result a complete superset of any
+* path the runtime can address.
+*
+* Hint: Arrays and tuples are atomic because they don't structurally
+* extend `Record<PropertyKey, unknown>` and so fall through to `never`
+* via `DeepDirtyPath` — no explicit array check is needed. `TDepth` is
+* a tuple-length counter capped at 5 to bound TypeScript instantiation
+* cost.
+*/
+type DirtyPath<TValue, TDepth extends 0[] = []> = TDepth["length"] extends 5 ? RequiredPath : TValue extends Record<PropertyKey, unknown> ? { [TKey in ExactKeysOf<TValue>]: readonly [TKey] | DeepDirtyPath<NonNullable<PropertiesOf<TValue>[TKey]>, TKey, TDepth> }[ExactKeysOf<TValue>] : never;
+/**
+* Recursive helper for `FieldPath` that prepends `TKey` to each deeper field
+* path, or falls through to `never` when the child is a leaf value.
+*/
+type DeepFieldPath<TChild, TKey$1 extends PathKey, TDepth extends 0[]> = TChild extends readonly unknown[] | Record<PropertyKey, unknown> ? readonly [TKey$1, ...FieldPath<TChild, [...TDepth, 0]>] : never;
+/**
+* Returns the union of all `RequiredPath`s that address a field within the
+* given input type. Object and array fields contribute their own path and the
+* paths of their descendants; unlike `DirtyPath`, arrays are recursed into so
+* that fields at any depth, including array items, can be addressed. Leaf
+* values contribute only their own path (emitted by their parent).
+*
+* Narrowing is exact for the first 5 levels of nesting; deeper paths fall
+* back to `RequiredPath` to keep the result a complete superset of any path
+* the runtime can address. `TDepth` is a tuple-length counter capped at 5 to
+* bound TypeScript instantiation cost.
+*/
+type FieldPath<TValue, TDepth extends 0[] = []> = TDepth["length"] extends 5 ? RequiredPath : TValue extends readonly unknown[] | Record<PropertyKey, unknown> ? { [TKey in ExactKeysOf<TValue>]: readonly [TKey] | DeepFieldPath<NonNullable<PropertiesOf<TValue>[TKey]>, TKey, TDepth> }[ExactKeysOf<TValue>] : never;
+//#endregion
+//#region src/types/schema/schema.d.ts
+/**
+* Schema type.
+*/
+type Schema = v.GenericSchema | v.GenericSchemaAsync;
+/**
+* Form schema type.
+*
+* Forms must have an object root, so this is constrained structurally to a
+* schema with an object output (sync or async) rather than to specific Valibot
+* schema types. Staying decoupled from concrete Valibot types lets this later
+* move to Standard Schema (e.g. to also support Zod or ArkType). Use
+* {@link Schema} for nested field schemas.
+*/
+type FormSchema = v.GenericSchema<Record<string, unknown>> | v.GenericSchemaAsync<Record<string, unknown>>;
+//#endregion
+//#region src/types/signal/signal.d.ts
+/**
+* Batch interface.
+*/
+interface Batch {
+  <T>(fn: () => T): T;
+}
+/**
+* Untrack interface.
+*/
+interface Untrack {
+  <T>(fn: () => T): T;
+}
+//#endregion
+//#region src/types/field/field.d.ts
+/**
+* Field element type.
+*/
+type FieldElement = HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement;
+/**
+* Internal base store interface.
+*/
+interface InternalBaseStore {
+  /**
+  * The kind of field store.
+  */
+  kind: "array" | "object" | "value";
+  /**
+  * The name of the field.
+  */
+  name: string;
+  /**
+  * The path to the field.
+  */
+  path: Path;
+  /**
+  * The schema of the field.
+  */
+  schema: Schema;
+  /**
+  * Whether the schema is wrapped in a nullish schema.
+  *
+  * Hint: This indicates whether a missing input should be represented as the
+  * nullish value (`null`/`undefined`) instead of a present empty fallback
+  * (`true` for arrays and objects, or the empty input for values). It keeps
+  * resetting consistent with the initial state.
+  */
+  isNullish: boolean;
+  /**
+  * The initial elements of the field.
+  *
+  * Hint: This may look unused, but do not remove it. `copyItemState` and
+  * `swapItemState` move the `elements` reference between field stores when
+  * array items are inserted, moved, removed or swapped, and `reset` restores
+  * each field's original element via `elements = initialElements`. Without it,
+  * focus and file reset target the wrong element after a reorder followed by a
+  * reset.
+  */
+  initialElements: FieldElement[];
+  /**
+  * The elements of the field.
+  */
+  elements: FieldElement[];
+  /**
+  * The errors of the field.
+  */
+  errors: Signal<[string, ...string[]] | null>;
+  /**
+  * The touched state of the field.
+  */
+  isTouched: Signal<boolean>;
+  /**
+  * The edited state of the field.
+  *
+  * Hint: Unlike `isTouched`, which is also set when a field is focused, this
+  * is only set when the field's value is changed. Unlike `isDirty`, it stays
+  * `true` even if the value is changed back to its initial value. It is only
+  * reset when the field is reset.
+  */
+  isEdited: Signal<boolean>;
+  /**
+  * The dirty state of the field.
+  */
+  isDirty: Signal<boolean>;
+}
+/**
+* Internal array store interface.
+*/
+interface InternalArrayStore extends InternalBaseStore {
+  /**
+  * The kind of field store.
+  */
+  kind: "array";
+  /**
+  * The children of the array field.
+  */
+  children: InternalFieldStore[];
+  /**
+  * The initial input of the array field.
+  *
+  * Hint: The initial input is used for resetting and may only be changed
+  * during this process. It does not move when a field is moved.
+  */
+  initialInput: Signal<true | null | undefined>;
+  /**
+  * The start input of the array field.
+  *
+  * Hint: The start input is used to determine whether the field is dirty
+  * and moves with it.
+  */
+  startInput: Signal<true | null | undefined>;
+  /**
+  * The input of the array field.
+  *
+  * Hint: The input indicates whether it is `null`, `undefined`, or found in
+  * the children.
+  */
+  input: Signal<true | null | undefined>;
+  /**
+  * The initial items of the array field.
+  *
+  * Hint: The initial items are used for resetting and may only be changed
+  * during this process. It does not move when a field is moved.
+  */
+  initialItems: Signal<string[]>;
+  /**
+  * The start items of the array field.
+  *
+  * Hint: The start items are used to determine whether the field is dirty
+  * and moves with it.
+  */
+  startItems: Signal<string[]>;
+  /**
+  * The items of the array field.
+  */
+  items: Signal<string[]>;
+}
+/**
+* Internal object store interface.
+*/
+interface InternalObjectStore extends InternalBaseStore {
+  /**
+  * The kind of field store.
+  */
+  kind: "object";
+  /**
+  * The children of the object field.
+  */
+  children: Record<string, InternalFieldStore>;
+  /**
+  * The initial input of the object field.
+  *
+  * Hint: The initial input is used for resetting and may only be changed
+  * during this process. It does not move when a field is moved.
+  */
+  initialInput: Signal<true | null | undefined>;
+  /**
+  * The start input of the object field.
+  *
+  * Hint: The start input is used to determine whether the field is dirty
+  * and moves with it.
+  */
+  startInput: Signal<true | null | undefined>;
+  /**
+  * The input of the object field.
+  *
+  * Hint: The input indicates whether it is `null`, `undefined`, or found in
+  * the children.
+  */
+  input: Signal<true | null | undefined>;
+}
+/**
+* Internal value store interface.
+*/
+interface InternalValueStore extends InternalBaseStore {
+  /**
+  * The kind of field store.
+  */
+  kind: "value";
+  /**
+  * The initial input of the value field.
+  *
+  * Hint: The initial input is used for resetting and may only be changed
+  * during this process. It does not move when a field is moved.
+  */
+  initialInput: Signal<unknown>;
+  /**
+  * The start input of the value field.
+  *
+  * Hint: The start input is used to determine whether the field is dirty
+  * and moves with it.
+  */
+  startInput: Signal<unknown>;
+  /**
+  * The input of the value field.
+  */
+  input: Signal<unknown>;
+}
+/**
+* Internal field store type.
+*/
+type InternalFieldStore = InternalArrayStore | InternalObjectStore | InternalValueStore;
+//#endregion
+//#region src/values.d.ts
+/**
+* Internal symbol constant.
+*/
+declare const INTERNAL: "~internal";
+//#endregion
+//#region src/types/form/form.d.ts
+/**
+* Validation mode type.
+*/
+type ValidationMode = "initial" | "touch" | "input" | "change" | "blur" | "submit";
+/**
+* Empty input interface.
+*
+* Defines the value a required field of a given type starts at when no initial
+* input is provided. Optional and nullable fields are not affected, as they
+* accept `undefined`. Only required fields whose input is `undefined` fall back
+* to these values.
+*/
+interface EmptyInput {
+  /**
+  * The empty input of a string field. Defaults to an empty string so that an
+  * untouched field matches the DOM and validates with its own message instead
+  * of a type mismatch. Set to `undefined` to opt out.
+  */
+  readonly string?: string | undefined;
+  /**
+  * The empty input of a number field. Defaults to `undefined`.
+  */
+  readonly number?: number | undefined;
+  /**
+  * The empty input of a boolean field. Defaults to `undefined`.
+  */
+  readonly boolean?: boolean | undefined;
+  /**
+  * The empty input of a date field. Defaults to `undefined`.
+  */
+  readonly date?: Date | undefined;
+}
+/**
+* Form config interface.
+*/
+interface FormConfig<TSchema extends FormSchema = FormSchema> {
+  /**
+  * The schema of the form.
+  */
+  readonly schema: TSchema;
+  /**
+  * The initial input of the form.
+  */
+  readonly initialInput?: DeepPartial<v.InferInput<TSchema>> | undefined;
+  /**
+  * The empty input of the form, keyed by field type. Merged on top of the
+  * defaults, so `{ string: '' }` stays in effect unless overridden.
+  */
+  readonly emptyInput?: EmptyInput | undefined;
+  /**
+  * The validation mode of the form.
+  */
+  readonly validate?: ValidationMode | undefined;
+  /**
+  * The revalidation mode of the form.
+  */
+  readonly revalidate?: Exclude<ValidationMode, "initial"> | undefined;
+}
+/**
+* Internal form store interface.
+*/
+interface InternalFormStore<TSchema extends FormSchema = FormSchema> extends InternalObjectStore {
+  /**
+  * The element of the form.
+  */
+  element?: HTMLFormElement | undefined;
+  /**
+  * The validation ID, incremented when validation starts or pending results
+  * are invalidated.
+  */
+  validationId: number;
+  /**
+  * The ID of the latest submission. Incremented by full form resets as well.
+  */
+  submissionId: number;
+  /**
+  * The resolved empty input of the form, keyed by field type.
+  */
+  emptyInput: EmptyInput;
+  /**
+  * The validation mode of the form.
+  */
+  validate: ValidationMode;
+  /**
+  * The revalidation mode of the form.
+  */
+  revalidate: Exclude<ValidationMode, "initial">;
+  /**
+  * The parse function of the form.
+  */
+  parse: (input: unknown) => Promise<v.SafeParseResult<TSchema>>;
+  /**
+  * The submitting state of the form.
+  */
+  isSubmitting: Signal<boolean>;
+  /**
+  * The submitted state of the form.
+  */
+  isSubmitted: Signal<boolean>;
+  /**
+  * The validating state of the form.
+  */
+  isValidating: Signal<boolean>;
+}
+/**
+* Base form store interface.
+*/
+interface BaseFormStore<TSchema extends FormSchema = FormSchema> {
+  /**
+  * The internal form store.
+  *
+  * @internal
+  */
+  readonly [INTERNAL]: InternalFormStore<TSchema>;
+}
+/**
+* Submit handler type.
+*/
+type SubmitHandler<TSchema extends FormSchema> = (output: v.InferOutput<TSchema>) => MaybePromise<unknown>;
+/**
+* Submit event handler type.
+*/
+type SubmitEventHandler<TSchema extends FormSchema> = (output: v.InferOutput<TSchema>, event: SubmitEvent) => MaybePromise<unknown>;
+//#endregion
+//#region src/array/copyItemState/copyItemState.d.ts
+/**
+* Copies the deeply nested state (signal values) from one field store to
+* another. This includes the `elements`, `errors`, `startInput`, `input`,
+* `isTouched`, `isEdited`, `isDirty`, and for arrays `startItems` and `items`
+* properties. Recursively walks through the field stores and copies all signal
+* values.
+*
+* @param internalFormStore The form store providing the empty input config.
+* @param fromInternalFieldStore The source field store to copy from.
+* @param toInternalFieldStore The destination field store to copy to.
+*/
+declare function copyItemState(internalFormStore: InternalFormStore, fromInternalFieldStore: InternalFieldStore, toInternalFieldStore: InternalFieldStore): void;
+//#endregion
+//#region src/array/resetItemState/resetItemState.d.ts
+/**
+* Resets the state of a field store (signal values) deeply nested. Sets
+* `elements` to empty array, `errors` to `null`, `isTouched`, `isEdited` and
+* `isDirty` to `false`, and `startInput`, `input`, `startItems`, and `items` to
+* the new input value. Keeps the `initialInput` and `initialItems` state
+* unchanged for form reset functionality.
+*
+* @param internalFormStore The form store providing the empty input config.
+* @param internalFieldStore The field store to reset.
+* @param input The new input value (can be any type including array or object).
+* @param keepStart Whether to keep `startInput` and `startItems` as the dirty
+* baseline instead of resetting them to the new input. Used when a field store
+* is reused for an in-place edit so its dirty state is detected correctly.
+*/
+declare function resetItemState(internalFormStore: InternalFormStore, internalFieldStore: InternalFieldStore, input: unknown, keepStart?: boolean): void;
+//#endregion
+//#region src/array/swapItemState/swapItemState.d.ts
+/**
+* Swaps the deeply nested state (signal values) between two field stores. This
+* includes the `elements`, `errors`, `startInput`, `input`, `isTouched`,
+* `isEdited`, `isDirty`, and for arrays `startItems` and `items` properties.
+* Recursively walks through the field stores and swaps all signal values.
+*
+* @param internalFormStore The form store providing the empty input config.
+* @param firstInternalFieldStore The first field store to swap.
+* @param secondInternalFieldStore The second field store to swap.
+*/
+declare function swapItemState(internalFormStore: InternalFormStore, firstInternalFieldStore: InternalFieldStore, secondInternalFieldStore: InternalFieldStore): void;
+//#endregion
+//#region src/field/focusFieldElement/focusFieldElement.d.ts
+/**
+* Focuses the first focusable element of a field store. The elements are tried
+* in order and the first one that actually receives focus wins, so detached,
+* disabled or hidden elements are skipped. The browser decides focusability,
+* which is read back via the element's root `activeElement` so elements in a
+* shadow root or another document are handled correctly.
+*
+* Hint: A `display: none` or `hidden` element is correctly skipped in real
+* browsers, but jsdom has no layout and focuses it anyway, so that case cannot
+* be covered by unit tests.
+*
+* @param internalFieldStore The field store to focus.
+*
+* @returns Whether an element was focused.
+*/
+declare function focusFieldElement(internalFieldStore: InternalFieldStore): boolean;
+//#endregion
+//#region src/field/getDirtyFieldInput/getDirtyFieldInput.d.ts
+/**
+* Returns only the dirty input of the field store. Arrays are treated as
+* atomic and returned in full if any item is dirty, while object keys without
+* a dirty descendant are omitted. Returns `undefined` if no descendant is
+* dirty.
+*
+* @param internalFieldStore The field store to get dirty input from.
+* @param dirtyOnly Whether to only include dirty fields. Defaults to `true`.
+*
+* @returns The dirty input, or `undefined` if no descendant is dirty.
+*/
+declare function getDirtyFieldInput(internalFieldStore: InternalFieldStore, dirtyOnly?: boolean): unknown;
+//#endregion
+//#region src/field/getElementInput/getElementInput.d.ts
+/**
+* Returns the current input of the element. Handles special cases for select
+* multiple, checkbox groups, radio groups, and file inputs.
+*
+* @param element The field element.
+* @param internalFieldStore The internal field store.
+*
+* @returns The element input.
+*/
+declare function getElementInput(element: FieldElement, internalFieldStore: InternalFieldStore): unknown;
+//#endregion
+//#region src/field/getFieldBool/getFieldBool.d.ts
+/**
+* Returns whether the specified boolean property is true for the field store
+* or any of its nested children. Recursively checks arrays and objects.
+*
+* @param internalFieldStore The field store to check.
+* @param type The boolean property type to check.
+*
+* @returns Whether the property is true.
+*/
+declare function getFieldBool(internalFieldStore: InternalFieldStore, type: "errors" | "isTouched" | "isEdited" | "isDirty"): boolean;
+//#endregion
+//#region src/field/getFieldInput/getFieldInput.d.ts
+/**
+* Returns the current input of the field store. For arrays and objects,
+* recursively collects input from all children. Returns `null` or `undefined`
+* for nullish array/object inputs, or the primitive value for value fields.
+*
+* @param internalFieldStore The field store to get input from.
+*
+* @returns The field input.
+*/
+declare function getFieldInput(internalFieldStore: InternalFieldStore): unknown;
+//#endregion
+//#region src/field/getFieldStore/getFieldStore.vue.d.ts
+/**
+* Returns the field store at the specified path by traversing the form store's
+* children hierarchy.
+*
+* @param internalFormStore The form store to traverse.
+* @param path The path to the field store.
+*
+* @returns The field store, or `undefined` if a dynamic array item in the path
+* does not exist at runtime.
+*/
+declare function getFieldStore(internalFormStore: InternalFormStore, path: Path): InternalFieldStore | undefined;
+//#endregion
+//#region src/field/initializeFieldStore/initializeFieldStore.d.ts
+type FieldSchema = v.ArraySchema<v.BaseSchema<unknown, unknown, v.BaseIssue<unknown>>, v.ErrorMessage<v.ArrayIssue> | undefined> | v.BooleanSchema<any> | v.DateSchema<any> | v.ExactOptionalSchema<any, any> | v.IntersectSchema<any, any> | v.LazySchema<any> | v.LooseObjectSchema<any, any> | v.LooseTupleSchema<any, any> | v.NonNullableSchema<any, any> | v.NonNullishSchema<any, any> | v.NonOptionalSchema<any, any> | v.NullableSchema<any, any> | v.NullishSchema<any, any> | v.NumberSchema<any> | v.ObjectSchema<v.ObjectEntries, v.ErrorMessage<v.ObjectIssue> | undefined> | v.ObjectWithRestSchema<v.ObjectEntries, v.BaseSchema<unknown, unknown, v.BaseIssue<unknown>>, v.ErrorMessage<v.ObjectWithRestIssue> | undefined> | v.OptionalSchema<any, any> | v.PromiseSchema<any> | v.RecordSchema<any, any, any> | v.StrictObjectSchema<any, any> | v.StrictTupleSchema<any, any> | v.StringSchema<any> | v.TupleSchema<v.TupleItems, v.ErrorMessage<v.TupleIssue> | undefined> | v.TupleWithRestSchema<any, any, any> | v.UndefinedableSchema<any, any> | v.UnionSchema<any, any> | v.VariantSchema<any, any, any>;
+/**
+* Initializes a field store recursively based on the schema structure. Handles
+* array, object, and value schemas, setting up all necessary signals and
+* children. Supports wrapped schemas and schema options.
+*
+* @param internalFormStore The form store providing the empty input config.
+* @param internalFieldStore The partial field store to initialize.
+* @param schema The Valibot schema defining the field structure.
+* @param initialInput The initial input value.
+* @param path The path to the field in the form.
+* @param nullish Whether the schema is wrapped in a nullish schema.
+*/
+declare function initializeFieldStore(internalFormStore: InternalFormStore, internalFieldStore: Partial<InternalFieldStore>, schema: FieldSchema, initialInput: unknown, path: Path, nullish?: boolean): void;
+//#endregion
+//#region src/field/setFieldBool/setFieldBool.d.ts
+/**
+* Sets the specified boolean property for the field store and all nested
+* children. Recursively updates arrays and objects.
+*
+* @param internalFieldStore The field store to update.
+* @param type The boolean property type to set.
+* @param bool The boolean value to set.
+*/
+declare function setFieldBool(internalFieldStore: InternalFieldStore, type: "isTouched" | "isDirty", bool: boolean): void;
+//#endregion
+//#region src/field/setFieldInput/setFieldInput.d.ts
+/**
+* Sets the input for a field at the specified path in the form store,
+* traversing the path and updating all parent fields along the way.
+*
+* @param internalFormStore The form store containing the field.
+* @param path The path to the field.
+* @param input The new input value.
+*/
+declare function setFieldInput(internalFormStore: InternalFormStore, path: Path, input: unknown): void;
+//#endregion
+//#region src/field/setInitialFieldInput/setInitialFieldInput.d.ts
+/**
+* Sets the initial input for a field store and all its children recursively.
+* For arrays, initializes missing children if needed. Updates `initialInput`
+* and `initialItems` properties.
+*
+* @param internalFormStore The form store providing the empty input config.
+* @param internalFieldStore The field store to update.
+* @param initialInput The initial input value.
+*/
+declare function setInitialFieldInput(internalFormStore: InternalFormStore, internalFieldStore: InternalFieldStore, initialInput: unknown): void;
+//#endregion
+//#region src/field/walkFieldStore/walkFieldStore.d.ts
+/**
+* Walks through the field store and all nested children, calling the callback
+* for each field store in depth-first order. The callback may return `true` to
+* stop the walk early, in which case `walkFieldStore` returns `true` as well.
+*
+* The walk reads array `items` reactively, so a reactive caller subscribes to
+* structural changes naturally. Imperative callers that must not subscribe
+* (e.g. when invoked inside an effect) should wrap the call in `untrack`.
+*
+* @param internalFieldStore The field store to walk.
+* @param callback The callback to invoke for each field store. Return `true` to stop the walk early.
+*
+* @returns Whether the walk was stopped early by the callback.
+*/
+declare function walkFieldStore(internalFieldStore: InternalFieldStore, callback: (internalFieldStore: InternalFieldStore) => boolean | void): boolean;
+//#endregion
+//#region src/form/createFormStore/createFormStore.d.ts
+/**
+* The default empty input of a form. Required string fields start as an empty
+* string, while every other type starts as `undefined`.
+*/
+declare const DEFAULT_EMPTY_INPUT: EmptyInput;
+/**
+* Creates a new internal form store from the provided configuration.
+* Initializes the field store hierarchy, sets validation modes, and
+* creates form state signals.
+*
+* @param config The form configuration.
+* @param parse The schema parse function.
+*
+* @returns The internal form store.
+*/
+declare function createFormStore(config: FormConfig, parse: (input: unknown) => Promise<v.SafeParseResult<FormSchema>>): InternalFormStore;
+//#endregion
+//#region src/form/decodeFormData/decodeFormData.d.ts
+/**
+* Decodes the entries of a form data object into nested form values using the
+* Valibot schema as the source of truth. Information that is lost during the
+* transfer via HTTP, like numbers, booleans, dates and unchecked checkboxes,
+* is restored based on the schema.
+*
+* The keys of the form data are expected to be the stringified field paths that
+* Formisch assigns to its field elements (for example `["todos",0,"label"]`).
+*
+* @param schema The form schema.
+* @param formData The form data object.
+*
+* @returns The decoded form values.
+*/
+declare function decodeFormData<TSchema extends FormSchema>(schema: TSchema, formData: FormData): unknown;
+//#endregion
+//#region src/form/validateFormInput/validateFormInput.d.ts
+/**
+* Validate form input config interface.
+*/
+interface ValidateFormInputConfig {
+  /**
+  * Whether to focus the first field with an error.
+  */
+  readonly shouldFocus?: boolean | undefined;
+}
+/**
+* Validates the form input using the configured Valibot schema. Parses the
+* current form input, processes validation issues, assigns errors to fields,
+* and optionally focuses the first field with an error.
+*
+* @param internalFormStore The form store to validate.
+* @param config The validation configuration.
+*
+* @returns The Valibot validation result.
+*/
+declare function validateFormInput(internalFormStore: InternalFormStore, config?: ValidateFormInputConfig): Promise<v.SafeParseResult<Schema>>;
+//#endregion
+//#region src/form/validateIfRequired/validateIfRequired.d.ts
+/**
+* Validates the form input if required based on the validation mode and form
+* state. Determines whether to use initial validation mode, revalidation mode,
+* or skip validation entirely.
+*
+* @param internalFormStore The form store to validate.
+* @param internalFieldStore The field store that triggered validation.
+* @param validationMode The validation mode that triggered this check.
+*/
+declare function validateIfRequired(internalFormStore: InternalFormStore, internalFieldStore: InternalFieldStore, validationMode: ValidationMode): void;
+//#endregion
+//#region src/framework/index.d.ts
+/**
+* Framework type.
+*/
+type Framework = "angular" | "preact" | "qwik" | "react" | "react-native" | "solid" | "svelte" | "vue";
+//#endregion
+//#region src/framework/index.vue.d.ts
+/**
+* The current framework being used.
+*/
+declare const framework: Framework;
+/**
+* Creates a unique identifier string.
+*
+* @returns The unique identifier.
+*/
+declare function createId(): string;
+/**
+* Batches multiple signal updates into a single update cycle. This is a
+* no-op in Vue as batching is handled automatically.
+*
+* @param fn The function to execute.
+*
+* @returns The return value of the function.
+*/
+declare function batch<T>(fn: () => T): T;
+/**
+* Executes a function without tracking reactive dependencies. This is a
+* no-op in Vue as untracking is not supported in Vue.
+*
+* @param fn The function to execute.
+*
+* @returns The return value of the function.
+*/
+declare function untrack<T>(fn: () => T): T;
+//#endregion
+export { BaseFormStore, type Batch, DEFAULT_EMPTY_INPUT, DeepPartial, DirtyPath, EmptyInput, FieldElement, FieldPath, FieldSchema, FormConfig, FormSchema, INTERNAL, InternalArrayStore, InternalBaseStore, InternalFieldStore, InternalFormStore, InternalObjectStore, InternalValueStore, IsAny, IsNever, MaybePromise, PartialValues, Path, PathKey, PathValue, RequiredPath, Schema, type Signal, SubmitEventHandler, SubmitHandler, type Untrack, ValidArrayPath, ValidPath, ValidateFormInputConfig, ValidationMode, batch, copyItemState, createFormStore, createId, createSignal, decodeFormData, focusFieldElement, framework, getDirtyFieldInput, getElementInput, getFieldBool, getFieldInput, getFieldStore, initializeFieldStore, resetItemState, setFieldBool, setFieldInput, setInitialFieldInput, swapItemState, untrack, validateFormInput, validateIfRequired, walkFieldStore };

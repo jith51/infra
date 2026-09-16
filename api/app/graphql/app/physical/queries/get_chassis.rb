@@ -17,7 +17,7 @@ module App
           # ).find_by!(name: name)
           ::Physical::Chassis
             .includes(:chassis_class, :components, :ports, :tags)
-            .find_by('id::text = :value OR name = :value', value: name_or_id)
+            .find_by!('id::text = :value OR name = :value', value: name_or_id)
         end
       end
     end

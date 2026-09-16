@@ -1,58 +1,85 @@
 import USER_LOGOUT_QUERY from '~/graphql/auth/userLogout.mutation.gql'
 import USER_CAS_LOGIN_QUERY from '~/graphql/auth/userCasLogin.mutation.gql'
-import USER_QUERY from '~/graphql/auth/user.query.gql'
+import CHECK_AUTH_QUERY from '~/graphql/auth/checkAuth.query.gql'
+
+import type { CheckAuthResponse, LogInResponse, IUser, User } from '@/types/auth'
 
 import { useMutation, useLazyQuery } from '@vue/apollo-composable'
 
 export const useUserAuth = () => {
 
-  const authStore = useAuthStore()
+  	const { saveLogoutState, saveLoginState } = useAuthStore()
 
-  const saveLogInState = (token: string, user: string) => {
-    authStore.value.user = user
-    authStore.value.token = token
-  }
+	// CHECK AUTHENTIFICATION
+	const { load: loadCheckAuth } = useLazyQuery<CheckAuthResponse>(
+		CHECK_AUTH_QUERY,
+		{
+			fetchPolicy: 'no-cache'
+		}
+	)
 
-  const saveLogOutState = () => {
-    authStore.value.user = ""
-    authStore.value.token = ""
-  }
+	const checkAuth = async () => {
+		const result = await loadCheckAuth()
+		if (!result?.checkAuth) {
+			saveLogoutState()
+		}
 
-  // USER CHECK AUTHENTIFICATION
-  const { load: checkAuth } = useLazyQuery(USER_QUERY, {
-      fetchPolicy: "no-cache"
-    }
-  )
-    
-  // LOG IN SUR LE SERVEUR API
-  // on envoi le token reçu par le CAS et on le fait valider par l'API qui nous retounr le user si OK
-  const { mutate: userLogIn, onDone: onLogInDone, onError: onLogInError  }  = useMutation(USER_CAS_LOGIN_QUERY, {
-    context: { RequestForAuth: true },
-    fetchPolicy: 'no-cache'
-  })
+		const { user, token } = (result as CheckAuthResponse).checkAuth
+		const { __typename, ...userWithoutTypeName } = user
 
-  onLogInError(() => {
-    // A revoir le message d'erreur
-    saveLogOutState()
-  })
+		// Le serveur nous renvoie un nouveau JWT
+		saveLoginState(userWithoutTypeName, token)
+		console.log('CHECK AUTH - NOUVEAU TOKEN:', token)
 
-  onLogInDone(({ data }) => {
-    debugger
-    saveLogInState(data.userCasLogin?.token, data.userCasLogin?.user)
-  })
+		return userWithoutTypeName
+	}
 
-  // LOGOUT
-  const { mutate: userLogOut, onDone: onLogOutDone  }  = useMutation(USER_LOGOUT_QUERY, {
-    context: { RequestForAuth: true },
-    variables: { fake: ''},
-    fetchPolicy: 'no-cache'
-  })
 
-  onLogOutDone( () => {
-    saveLogOutState()
-    return navigateTo('/')
-  })
+	// LOGIN SUR LE SERVEUR API
+	// Le token reçu du CAS est envoyé à l'API.
+	// L'API le valide et crée la session applicative.
+	const {
+		mutate: userLogIn,
+		onDone: onLogInDone,
+	} = useMutation<LogInResponse>(
+		USER_CAS_LOGIN_QUERY,
+		{
+			context: { authSchema: true },
+			fetchPolicy: 'no-cache'
+		}
+	)
 
-  return { userLogIn, userLogOut, checkAuth }
+	onLogInDone(({ data }) => {
+		if (data?.userCasLogin) {
+		saveLoginState(
+			data?.userCasLogin?.user,
+			data?.userCasLogin?.token,
+		)
+		}
+	})
 
+	// LOGOUT
+	const {
+		mutate: userLogOut,
+		onDone: onLogOutDone
+	} = useMutation(
+		USER_LOGOUT_QUERY,
+		{
+			context: { authSchema: true },
+			variables: { fake: '' },
+			fetchPolicy: 'no-cache'
+		}
+	)
+
+	onLogOutDone(() => {
+		saveLogoutState()
+		return navigateTo('/')
+	})
+
+
+	return {
+		userLogIn,
+		userLogOut,
+		checkAuth
+	}
 }

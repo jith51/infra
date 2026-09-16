@@ -10,7 +10,7 @@ module App
         type ::App::Physical::Types::ChassisPowertype, null: false
 
         def resolve(name:)
-          ::Physical::ChassisPowertype.find_by(name: name) || ::Physical::ChassisPowertype.find_by!(id: name)
+          ::Physical::ChassisPowertype.find_by('id::text = :value OR name = :value', value: name)
         end
       end
     end

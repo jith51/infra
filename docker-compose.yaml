@@ -18,7 +18,7 @@ services:
     ports:
       - "6379:6379"
     volumes:
-      - infra-redis:/var/lib/redis/data
+      - infra-redis:/data
 
   api:
     build:
@@ -61,7 +61,9 @@ services:
       - "3000:3000" # use port that you want to in your local instead of 8091
     links:
       - api
-
+    environment:
+      NUXT_PUBLIC_CAS_URL: ${CAS_URL}
+      NUXT_PUBLIC_BASE_URL: ${BASE_URL}
   web-server:
     image: nginx:1.26-alpine3.20-slim
     container_name: web-server

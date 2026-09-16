@@ -6,7 +6,7 @@ export const componentSchema = v.object({
     name: v.pipe(v.string(), v.nonEmpty()),
     serialNumber: v.nullish(v.string()),
     description: v.nullish(v.string()),
-    componentTypeId: v.string(),
+    componentTypeId: v.nullish(v.string()),
 })
 
 export const componentFormSchema = v.partial(componentSchema, ['id'])

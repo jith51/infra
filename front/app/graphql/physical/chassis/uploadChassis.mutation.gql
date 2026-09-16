@@ -1,0 +1,5 @@
+mutation uploadChassis($input: UploadChassisInput!) {
+  uploadChassis(input: $input) {
+    success
+  }
+}

@@ -1,0 +1,898 @@
+import * as v from "valibot";
+import { shallowRef as createSignal } from "vue";
+
+//#region src/framework/index.vue.ts
+/**
+* The current framework being used.
+*/
+const framework = "vue";
+/**
+* Creates a unique identifier string.
+*
+* @returns The unique identifier.
+*/
+/* @__NO_SIDE_EFFECTS__ */
+function createId() {
+	return Math.random().toString(36).slice(2);
+}
+/**
+* Batches multiple signal updates into a single update cycle. This is a
+* no-op in Vue as batching is handled automatically.
+*
+* @param fn The function to execute.
+*
+* @returns The return value of the function.
+*/
+function batch(fn) {
+	return fn();
+}
+/**
+* Executes a function without tracking reactive dependencies. This is a
+* no-op in Vue as untracking is not supported in Vue.
+*
+* @param fn The function to execute.
+*
+* @returns The return value of the function.
+*/
+function untrack(fn) {
+	return fn();
+}
+
+//#endregion
+//#region src/field/initializeFieldStore/initializeFieldStore.ts
+/**
+* Initializes a field store recursively based on the schema structure. Handles
+* array, object, and value schemas, setting up all necessary signals and
+* children. Supports wrapped schemas and schema options.
+*
+* @param internalFormStore The form store providing the empty input config.
+* @param internalFieldStore The partial field store to initialize.
+* @param schema The Valibot schema defining the field structure.
+* @param initialInput The initial input value.
+* @param path The path to the field in the form.
+* @param nullish Whether the schema is wrapped in a nullish schema.
+*/
+function initializeFieldStore(internalFormStore, internalFieldStore, schema, initialInput, path, nullish = false) {
+	if (framework === "qwik" && schema.type === "lazy" || schema.type === "object_with_rest" || schema.type === "record" || schema.type === "tuple_with_rest" || schema.type === "promise") throw new Error(`"${schema.type}" schema is not supported`);
+	else if (schema.type === "lazy") initializeFieldStore(internalFormStore, internalFieldStore, schema.getter(void 0), initialInput, path, nullish);
+	else if (schema.type === "exact_optional" || schema.type === "nullable" || schema.type === "nullish" || schema.type === "optional" || schema.type === "undefinedable") initializeFieldStore(internalFormStore, internalFieldStore, schema.wrapped, initialInput === void 0 ? v.getDefault(schema) : initialInput, path, true);
+	else if (schema.type === "non_nullable" || schema.type === "non_nullish" || schema.type === "non_optional") initializeFieldStore(internalFormStore, internalFieldStore, schema.wrapped, initialInput, path, nullish);
+	else if (schema.type === "intersect" || schema.type === "union" || schema.type === "variant") for (const schemaOption of schema.options) initializeFieldStore(internalFormStore, internalFieldStore, schemaOption, initialInput, path, nullish);
+	else {
+		internalFieldStore.schema = schema;
+		internalFieldStore.name = JSON.stringify(path);
+		internalFieldStore.path = path;
+		internalFieldStore.isNullish = nullish;
+		const initialElements = [];
+		internalFieldStore.initialElements = initialElements;
+		internalFieldStore.elements = initialElements;
+		internalFieldStore.errors = createSignal(null);
+		internalFieldStore.isTouched = createSignal(false);
+		internalFieldStore.isEdited = createSignal(false);
+		internalFieldStore.isDirty = createSignal(false);
+		if (schema.type === "array" || schema.type === "loose_tuple" || schema.type === "strict_tuple" || schema.type === "tuple") {
+			if (internalFieldStore.kind && internalFieldStore.kind !== "array") throw new Error(`Store initialized as "${internalFieldStore.kind}" cannot be reinitialized as "array"`);
+			internalFieldStore.kind = "array";
+			if (internalFieldStore.kind === "array") {
+				internalFieldStore.children ??= [];
+				if (schema.type === "array") {
+					if (initialInput) for (let index = 0; index < initialInput.length; index++) {
+						internalFieldStore.children[index] = {};
+						initializeFieldStore(internalFormStore, internalFieldStore.children[index], schema.item, initialInput[index], [...path, index]);
+					}
+				} else for (let index = 0; index < schema.items.length; index++) {
+					internalFieldStore.children[index] = {};
+					initializeFieldStore(internalFormStore, internalFieldStore.children[index], schema.items[index], initialInput?.[index], [...path, index]);
+				}
+				const arrayInput = nullish && initialInput == null ? initialInput : true;
+				internalFieldStore.initialInput = createSignal(arrayInput);
+				internalFieldStore.startInput = createSignal(arrayInput);
+				internalFieldStore.input = createSignal(arrayInput);
+				const initialItems = internalFieldStore.children.map(createId);
+				internalFieldStore.initialItems = createSignal(initialItems);
+				internalFieldStore.startItems = createSignal(initialItems);
+				internalFieldStore.items = createSignal(initialItems);
+			}
+		} else if (schema.type === "loose_object" || schema.type === "object" || schema.type === "strict_object") {
+			if (internalFieldStore.kind && internalFieldStore.kind !== "object") throw new Error(`Store initialized as "${internalFieldStore.kind}" cannot be reinitialized as "object"`);
+			internalFieldStore.kind = "object";
+			if (internalFieldStore.kind === "object") {
+				internalFieldStore.children ??= {};
+				for (const key in schema.entries) {
+					internalFieldStore.children[key] ??= {};
+					initializeFieldStore(internalFormStore, internalFieldStore.children[key], schema.entries[key], initialInput?.[key], [...path, key]);
+				}
+				const objectInput = nullish && initialInput == null ? initialInput : true;
+				internalFieldStore.initialInput = createSignal(objectInput);
+				internalFieldStore.startInput = createSignal(objectInput);
+				internalFieldStore.input = createSignal(objectInput);
+			}
+		} else {
+			if (internalFieldStore.kind && internalFieldStore.kind !== "value") throw new Error(`Store initialized as "${internalFieldStore.kind}" cannot be reinitialized as "value"`);
+			internalFieldStore.kind = "value";
+			if (internalFieldStore.kind === "value") {
+				const valueInput = initialInput === void 0 && !nullish ? internalFormStore.emptyInput[schema.type] : initialInput;
+				internalFieldStore.initialInput = createSignal(valueInput);
+				internalFieldStore.startInput = createSignal(valueInput);
+				internalFieldStore.input = createSignal(valueInput);
+			}
+		}
+	}
+}
+
+//#endregion
+//#region src/array/copyItemState/copyItemState.ts
+/**
+* Copies the deeply nested state (signal values) from one field store to
+* another. This includes the `elements`, `errors`, `startInput`, `input`,
+* `isTouched`, `isEdited`, `isDirty`, and for arrays `startItems` and `items`
+* properties. Recursively walks through the field stores and copies all signal
+* values.
+*
+* @param internalFormStore The form store providing the empty input config.
+* @param fromInternalFieldStore The source field store to copy from.
+* @param toInternalFieldStore The destination field store to copy to.
+*/
+function copyItemState(internalFormStore, fromInternalFieldStore, toInternalFieldStore) {
+	batch(() => {
+		untrack(() => {
+			toInternalFieldStore.elements = fromInternalFieldStore.elements;
+			toInternalFieldStore.errors.value = fromInternalFieldStore.errors.value;
+			toInternalFieldStore.startInput.value = fromInternalFieldStore.startInput.value;
+			toInternalFieldStore.input.value = fromInternalFieldStore.input.value;
+			toInternalFieldStore.isTouched.value = fromInternalFieldStore.isTouched.value;
+			toInternalFieldStore.isEdited.value = fromInternalFieldStore.isEdited.value;
+			toInternalFieldStore.isDirty.value = fromInternalFieldStore.isDirty.value;
+			if (fromInternalFieldStore.kind === "array" && toInternalFieldStore.kind === "array") {
+				const fromItems = fromInternalFieldStore.items.value;
+				toInternalFieldStore.startItems.value = fromInternalFieldStore.startItems.value;
+				toInternalFieldStore.items.value = fromItems;
+				for (let index = 0; index < fromItems.length; index++) {
+					if (!toInternalFieldStore.children[index]) {
+						toInternalFieldStore.children[index] = {};
+						initializeFieldStore(internalFormStore, toInternalFieldStore.children[index], toInternalFieldStore.schema.item, void 0, [...toInternalFieldStore.path, index]);
+					}
+					copyItemState(internalFormStore, fromInternalFieldStore.children[index], toInternalFieldStore.children[index]);
+				}
+			} else if (fromInternalFieldStore.kind === "object" && toInternalFieldStore.kind === "object") for (const key in fromInternalFieldStore.children) copyItemState(internalFormStore, fromInternalFieldStore.children[key], toInternalFieldStore.children[key]);
+		});
+	});
+}
+
+//#endregion
+//#region src/array/resetItemState/resetItemState.ts
+/**
+* Resets the state of a field store (signal values) deeply nested. Sets
+* `elements` to empty array, `errors` to `null`, `isTouched`, `isEdited` and
+* `isDirty` to `false`, and `startInput`, `input`, `startItems`, and `items` to
+* the new input value. Keeps the `initialInput` and `initialItems` state
+* unchanged for form reset functionality.
+*
+* @param internalFormStore The form store providing the empty input config.
+* @param internalFieldStore The field store to reset.
+* @param input The new input value (can be any type including array or object).
+* @param keepStart Whether to keep `startInput` and `startItems` as the dirty
+* baseline instead of resetting them to the new input. Used when a field store
+* is reused for an in-place edit so its dirty state is detected correctly.
+*/
+function resetItemState(internalFormStore, internalFieldStore, input, keepStart = false) {
+	batch(() => {
+		const elements = [];
+		if (internalFieldStore.elements === internalFieldStore.initialElements) internalFieldStore.initialElements = elements;
+		internalFieldStore.elements = elements;
+		internalFieldStore.errors.value = null;
+		internalFieldStore.isTouched.value = false;
+		internalFieldStore.isEdited.value = false;
+		internalFieldStore.isDirty.value = false;
+		if (internalFieldStore.kind === "array" || internalFieldStore.kind === "object") {
+			const objectInput = internalFieldStore.isNullish && input == null ? input : true;
+			if (!keepStart) internalFieldStore.startInput.value = objectInput;
+			internalFieldStore.input.value = objectInput;
+			if (internalFieldStore.kind === "array") {
+				const isTuple = internalFieldStore.schema.type !== "array";
+				if (input || isTuple) {
+					const length = isTuple ? internalFieldStore.children.length : input.length;
+					const newItems = Array.from({ length }, createId);
+					if (!keepStart) internalFieldStore.startItems.value = newItems;
+					internalFieldStore.items.value = newItems;
+					for (let index = 0; index < length; index++) {
+						const itemInput = input?.[index];
+						if (internalFieldStore.children[index]) resetItemState(internalFormStore, internalFieldStore.children[index], itemInput, keepStart);
+						else {
+							internalFieldStore.children[index] = {};
+							initializeFieldStore(internalFormStore, internalFieldStore.children[index], internalFieldStore.schema.item, itemInput, [...internalFieldStore.path, index]);
+						}
+					}
+				} else {
+					if (!keepStart) internalFieldStore.startItems.value = [];
+					internalFieldStore.items.value = [];
+				}
+			} else for (const key in internalFieldStore.children) resetItemState(internalFormStore, internalFieldStore.children[key], input?.[key], keepStart);
+		} else {
+			const valueInput = input === void 0 && !internalFieldStore.isNullish ? internalFormStore.emptyInput[internalFieldStore.schema.type] : input;
+			if (!keepStart) internalFieldStore.startInput.value = valueInput;
+			internalFieldStore.input.value = valueInput;
+		}
+	});
+}
+
+//#endregion
+//#region src/array/swapItemState/swapItemState.ts
+/**
+* Swaps the deeply nested state (signal values) between two field stores. This
+* includes the `elements`, `errors`, `startInput`, `input`, `isTouched`,
+* `isEdited`, `isDirty`, and for arrays `startItems` and `items` properties.
+* Recursively walks through the field stores and swaps all signal values.
+*
+* @param internalFormStore The form store providing the empty input config.
+* @param firstInternalFieldStore The first field store to swap.
+* @param secondInternalFieldStore The second field store to swap.
+*/
+function swapItemState(internalFormStore, firstInternalFieldStore, secondInternalFieldStore) {
+	batch(() => {
+		untrack(() => {
+			const tempElements = firstInternalFieldStore.elements;
+			firstInternalFieldStore.elements = secondInternalFieldStore.elements;
+			secondInternalFieldStore.elements = tempElements;
+			const tempErrors = firstInternalFieldStore.errors.value;
+			firstInternalFieldStore.errors.value = secondInternalFieldStore.errors.value;
+			secondInternalFieldStore.errors.value = tempErrors;
+			const tempStartInput = firstInternalFieldStore.startInput.value;
+			firstInternalFieldStore.startInput.value = secondInternalFieldStore.startInput.value;
+			secondInternalFieldStore.startInput.value = tempStartInput;
+			const tempInput = firstInternalFieldStore.input.value;
+			firstInternalFieldStore.input.value = secondInternalFieldStore.input.value;
+			secondInternalFieldStore.input.value = tempInput;
+			const tempIsTouched = firstInternalFieldStore.isTouched.value;
+			firstInternalFieldStore.isTouched.value = secondInternalFieldStore.isTouched.value;
+			secondInternalFieldStore.isTouched.value = tempIsTouched;
+			const tempIsEdited = firstInternalFieldStore.isEdited.value;
+			firstInternalFieldStore.isEdited.value = secondInternalFieldStore.isEdited.value;
+			secondInternalFieldStore.isEdited.value = tempIsEdited;
+			const tempIsDirty = firstInternalFieldStore.isDirty.value;
+			firstInternalFieldStore.isDirty.value = secondInternalFieldStore.isDirty.value;
+			secondInternalFieldStore.isDirty.value = tempIsDirty;
+			if (firstInternalFieldStore.kind === "array" && secondInternalFieldStore.kind === "array") {
+				const firstItems = firstInternalFieldStore.items.value;
+				const secondItems = secondInternalFieldStore.items.value;
+				const tempStartItems = firstInternalFieldStore.startItems.value;
+				firstInternalFieldStore.startItems.value = secondInternalFieldStore.startItems.value;
+				secondInternalFieldStore.startItems.value = tempStartItems;
+				firstInternalFieldStore.items.value = secondItems;
+				secondInternalFieldStore.items.value = firstItems;
+				const maxLength = Math.max(firstItems.length, secondItems.length);
+				for (let index = 0; index < maxLength; index++) {
+					if (!firstInternalFieldStore.children[index]) {
+						firstInternalFieldStore.children[index] = {};
+						initializeFieldStore(internalFormStore, firstInternalFieldStore.children[index], firstInternalFieldStore.schema.item, void 0, [...firstInternalFieldStore.path, index]);
+					}
+					if (!secondInternalFieldStore.children[index]) {
+						secondInternalFieldStore.children[index] = {};
+						initializeFieldStore(internalFormStore, secondInternalFieldStore.children[index], secondInternalFieldStore.schema.item, void 0, [...secondInternalFieldStore.path, index]);
+					}
+					swapItemState(internalFormStore, firstInternalFieldStore.children[index], secondInternalFieldStore.children[index]);
+				}
+			} else if (firstInternalFieldStore.kind === "object" && secondInternalFieldStore.kind === "object") for (const key in firstInternalFieldStore.children) swapItemState(internalFormStore, firstInternalFieldStore.children[key], secondInternalFieldStore.children[key]);
+		});
+	});
+}
+
+//#endregion
+//#region src/field/focusFieldElement/focusFieldElement.ts
+/**
+* Focuses the first focusable element of a field store. The elements are tried
+* in order and the first one that actually receives focus wins, so detached,
+* disabled or hidden elements are skipped. The browser decides focusability,
+* which is read back via the element's root `activeElement` so elements in a
+* shadow root or another document are handled correctly.
+*
+* Hint: A `display: none` or `hidden` element is correctly skipped in real
+* browsers, but jsdom has no layout and focuses it anyway, so that case cannot
+* be covered by unit tests.
+*
+* @param internalFieldStore The field store to focus.
+*
+* @returns Whether an element was focused.
+*/
+function focusFieldElement(internalFieldStore) {
+	for (const element of internalFieldStore.elements) {
+		element.focus();
+		if (element.getRootNode().activeElement === element) return true;
+	}
+	return false;
+}
+
+//#endregion
+//#region src/field/walkFieldStore/walkFieldStore.ts
+/**
+* Walks through the field store and all nested children, calling the callback
+* for each field store in depth-first order. The callback may return `true` to
+* stop the walk early, in which case `walkFieldStore` returns `true` as well.
+*
+* The walk reads array `items` reactively, so a reactive caller subscribes to
+* structural changes naturally. Imperative callers that must not subscribe
+* (e.g. when invoked inside an effect) should wrap the call in `untrack`.
+*
+* @param internalFieldStore The field store to walk.
+* @param callback The callback to invoke for each field store. Return `true` to stop the walk early.
+*
+* @returns Whether the walk was stopped early by the callback.
+*/
+function walkFieldStore(internalFieldStore, callback) {
+	if (callback(internalFieldStore)) return true;
+	if (internalFieldStore.kind === "array") {
+		for (let index = 0; index < internalFieldStore.items.value.length; index++) if (walkFieldStore(internalFieldStore.children[index], callback)) return true;
+	} else if (internalFieldStore.kind === "object") {
+		for (const key in internalFieldStore.children) if (walkFieldStore(internalFieldStore.children[key], callback)) return true;
+	}
+	return false;
+}
+
+//#endregion
+//#region src/field/getFieldBool/getFieldBool.ts
+/**
+* Returns whether the specified boolean property is true for the field store
+* or any of its nested children. Recursively checks arrays and objects.
+*
+* @param internalFieldStore The field store to check.
+* @param type The boolean property type to check.
+*
+* @returns Whether the property is true.
+*/
+/* @__NO_SIDE_EFFECTS__ */
+function getFieldBool(internalFieldStore, type) {
+	return walkFieldStore(internalFieldStore, (internalFieldStore$1) => Boolean(internalFieldStore$1[type].value));
+}
+
+//#endregion
+//#region src/field/getDirtyFieldInput/getDirtyFieldInput.ts
+/**
+* Returns only the dirty input of the field store. Arrays are treated as
+* atomic and returned in full if any item is dirty, while object keys without
+* a dirty descendant are omitted. Returns `undefined` if no descendant is
+* dirty.
+*
+* @param internalFieldStore The field store to get dirty input from.
+* @param dirtyOnly Whether to only include dirty fields. Defaults to `true`.
+*
+* @returns The dirty input, or `undefined` if no descendant is dirty.
+*/
+/* @__NO_SIDE_EFFECTS__ */
+function getDirtyFieldInput(internalFieldStore, dirtyOnly = true) {
+	if (dirtyOnly && !/* @__PURE__ */ getFieldBool(internalFieldStore, "isDirty")) return;
+	if (internalFieldStore.kind === "array") {
+		if (internalFieldStore.input.value) {
+			const value = [];
+			for (let index = 0; index < internalFieldStore.items.value.length; index++) value[index] = /* @__PURE__ */ getDirtyFieldInput(internalFieldStore.children[index], false);
+			return value;
+		}
+		return internalFieldStore.input.value;
+	}
+	if (internalFieldStore.kind === "object") {
+		if (internalFieldStore.input.value) {
+			const value = {};
+			for (const key in internalFieldStore.children) {
+				const child = internalFieldStore.children[key];
+				if (!dirtyOnly || /* @__PURE__ */ getFieldBool(child, "isDirty")) value[key] = /* @__PURE__ */ getDirtyFieldInput(child, dirtyOnly);
+			}
+			return value;
+		}
+		return internalFieldStore.input.value;
+	}
+	return internalFieldStore.input.value;
+}
+
+//#endregion
+//#region src/field/getFieldInput/getFieldInput.ts
+/**
+* Returns the current input of the field store. For arrays and objects,
+* recursively collects input from all children. Returns `null` or `undefined`
+* for nullish array/object inputs, or the primitive value for value fields.
+*
+* @param internalFieldStore The field store to get input from.
+*
+* @returns The field input.
+*/
+/* @__NO_SIDE_EFFECTS__ */
+function getFieldInput(internalFieldStore) {
+	if (internalFieldStore.kind === "array") {
+		if (internalFieldStore.input.value) {
+			const value = [];
+			for (let index = 0; index < internalFieldStore.items.value.length; index++) value[index] = /* @__PURE__ */ getFieldInput(internalFieldStore.children[index]);
+			return value;
+		}
+		return internalFieldStore.input.value;
+	}
+	if (internalFieldStore.kind === "object") {
+		if (internalFieldStore.input.value) {
+			const value = {};
+			for (const key in internalFieldStore.children) value[key] = /* @__PURE__ */ getFieldInput(internalFieldStore.children[key]);
+			return value;
+		}
+		return internalFieldStore.input.value;
+	}
+	return internalFieldStore.input.value;
+}
+
+//#endregion
+//#region src/field/getElementInput/getElementInput.ts
+/**
+* Returns the current input of the element. Handles special cases for select
+* multiple, checkbox groups, radio groups, and file inputs.
+*
+* @param element The field element.
+* @param internalFieldStore The internal field store.
+*
+* @returns The element input.
+*/
+/* @__NO_SIDE_EFFECTS__ */
+function getElementInput(element, internalFieldStore) {
+	if (element.options && internalFieldStore.kind === "array") return [...element.options].filter((option) => option.selected && !option.disabled).map((option) => option.value);
+	if (element.type === "checkbox") {
+		if (internalFieldStore.kind === "array") return Array.from(document.getElementsByName(element.name)).filter((option) => option.checked && !option.disabled && option.form === element.form).map((option) => option.value);
+		return element.checked;
+	}
+	if (element.type === "radio") {
+		if (element.checked) return element.value;
+		return untrack(() => /* @__PURE__ */ getFieldInput(internalFieldStore));
+	}
+	if (element.type === "file") {
+		if (internalFieldStore.kind === "array") return [...element.files];
+		return element.files[0];
+	}
+	return element.value;
+}
+
+//#endregion
+//#region src/field/getFieldStore/getFieldStore.vue.ts
+/**
+* Returns the field store at the specified path by traversing the form store's
+* children hierarchy.
+*
+* @param internalFormStore The form store to traverse.
+* @param path The path to the field store.
+*
+* @returns The field store, or `undefined` if a dynamic array item in the path
+* does not exist at runtime.
+*/
+/* @__NO_SIDE_EFFECTS__ */
+function getFieldStore(internalFormStore, path) {
+	let internalFieldStore = internalFormStore;
+	for (const key of path) {
+		if (internalFieldStore.kind === "array" && (internalFieldStore.items._value ?? internalFieldStore.items.value)[key] === void 0) return;
+		internalFieldStore = internalFieldStore.children[key];
+	}
+	return internalFieldStore;
+}
+
+//#endregion
+//#region src/field/setFieldBool/setFieldBool.ts
+/**
+* Sets the specified boolean property for the field store and all nested
+* children. Recursively updates arrays and objects.
+*
+* @param internalFieldStore The field store to update.
+* @param type The boolean property type to set.
+* @param bool The boolean value to set.
+*/
+function setFieldBool(internalFieldStore, type, bool) {
+	batch(() => {
+		untrack(() => {
+			walkFieldStore(internalFieldStore, (internalFieldStore$1) => {
+				internalFieldStore$1[type].value = bool;
+			});
+		});
+	});
+}
+
+//#endregion
+//#region src/field/setFieldInput/setFieldInput.ts
+/**
+* Sets the input for a nested field store and all its children, updating
+* touched and dirty states accordingly. Handles dynamic array resizing.
+*
+* @param internalFormStore The form store providing the empty input config.
+* @param internalFieldStore The field store to update.
+* @param input The new input value.
+*/
+function setNestedInput(internalFormStore, internalFieldStore, input) {
+	internalFieldStore.isTouched.value = true;
+	internalFieldStore.isEdited.value = true;
+	if (internalFieldStore.kind === "array") {
+		const arrayInput = input ?? [];
+		const items = internalFieldStore.items.value;
+		const length = internalFieldStore.schema.type === "array" ? arrayInput.length : internalFieldStore.children.length;
+		if (length < items.length) internalFieldStore.items.value = items.slice(0, length);
+		else if (length > items.length) {
+			for (let index = items.length; index < length; index++) if (internalFieldStore.children[index]) resetItemState(internalFormStore, internalFieldStore.children[index], arrayInput[index], true);
+			else {
+				internalFieldStore.children[index] = {};
+				initializeFieldStore(internalFormStore, internalFieldStore.children[index], internalFieldStore.schema.item, arrayInput[index], [...internalFieldStore.path, index]);
+			}
+			internalFieldStore.items.value = [...items, ...Array.from({ length: length - items.length }, createId)];
+		}
+		for (let index = 0; index < length; index++) setNestedInput(internalFormStore, internalFieldStore.children[index], arrayInput[index]);
+		internalFieldStore.input.value = input == null ? input : true;
+		internalFieldStore.isDirty.value = internalFieldStore.startInput.value !== internalFieldStore.input.value || internalFieldStore.startItems.value.length !== internalFieldStore.items.value.length;
+	} else if (internalFieldStore.kind === "object") {
+		for (const key in internalFieldStore.children) setNestedInput(internalFormStore, internalFieldStore.children[key], input?.[key]);
+		internalFieldStore.input.value = input == null ? input : true;
+		internalFieldStore.isDirty.value = internalFieldStore.startInput.value !== internalFieldStore.input.value;
+	} else {
+		internalFieldStore.input.value = input;
+		const startInput = internalFieldStore.startInput.value;
+		internalFieldStore.isDirty.value = startInput !== input && (startInput != null || input !== "" && !Number.isNaN(input));
+	}
+}
+/**
+* Sets the input for a field at the specified path in the form store,
+* traversing the path and updating all parent fields along the way.
+*
+* @param internalFormStore The form store containing the field.
+* @param path The path to the field.
+* @param input The new input value.
+*/
+function setFieldInput(internalFormStore, path, input) {
+	batch(() => {
+		untrack(() => {
+			let internalFieldStore = internalFormStore;
+			for (let index = 0; index < path.length; index++) {
+				internalFieldStore = internalFieldStore.children[path[index]];
+				if (index < path.length - 1) {
+					internalFieldStore.input.value = true;
+					internalFieldStore.isDirty.value = internalFieldStore.startInput.value !== internalFieldStore.input.value || internalFieldStore.kind === "array" && internalFieldStore.startItems.value.join() !== internalFieldStore.items.value.join();
+				}
+			}
+			internalFormStore.validationId++;
+			internalFormStore.isValidating.value = false;
+			setNestedInput(internalFormStore, internalFieldStore, input);
+		});
+	});
+}
+
+//#endregion
+//#region src/field/setInitialFieldInput/setInitialFieldInput.ts
+/**
+* Sets the initial input for a field store and all its children recursively.
+* For arrays, initializes missing children if needed. Updates `initialInput`
+* and `initialItems` properties.
+*
+* @param internalFormStore The form store providing the empty input config.
+* @param internalFieldStore The field store to update.
+* @param initialInput The initial input value.
+*/
+function setInitialFieldInput(internalFormStore, internalFieldStore, initialInput) {
+	batch(() => {
+		if (internalFieldStore.kind === "array") {
+			internalFieldStore.initialInput.value = initialInput == null ? initialInput : true;
+			const initialArrayInput = initialInput ?? [];
+			const length = internalFieldStore.schema.type === "array" ? initialArrayInput.length : internalFieldStore.children.length;
+			if (length > internalFieldStore.children.length) for (let index = internalFieldStore.children.length; index < length; index++) {
+				internalFieldStore.children[index] = {};
+				initializeFieldStore(internalFormStore, internalFieldStore.children[index], internalFieldStore.schema.item, initialArrayInput[index], [...internalFieldStore.path, index]);
+			}
+			internalFieldStore.initialItems.value = Array.from({ length }, createId);
+			for (let index = 0; index < internalFieldStore.children.length; index++) setInitialFieldInput(internalFormStore, internalFieldStore.children[index], initialArrayInput[index]);
+		} else if (internalFieldStore.kind === "object") {
+			internalFieldStore.initialInput.value = initialInput == null ? initialInput : true;
+			for (const key in internalFieldStore.children) setInitialFieldInput(internalFormStore, internalFieldStore.children[key], initialInput?.[key]);
+		} else internalFieldStore.initialInput.value = initialInput === void 0 && !internalFieldStore.isNullish ? internalFormStore.emptyInput[internalFieldStore.schema.type] : initialInput;
+	});
+}
+
+//#endregion
+//#region src/form/createFormStore/createFormStore.ts
+/**
+* The default empty input of a form. Required string fields start as an empty
+* string, while every other type starts as `undefined`.
+*/
+const DEFAULT_EMPTY_INPUT = { string: "" };
+/**
+* Creates a new internal form store from the provided configuration.
+* Initializes the field store hierarchy, sets validation modes, and
+* creates form state signals.
+*
+* @param config The form configuration.
+* @param parse The schema parse function.
+*
+* @returns The internal form store.
+*/
+/* @__NO_SIDE_EFFECTS__ */
+function createFormStore(config, parse) {
+	const store = {};
+	store.emptyInput = {
+		...DEFAULT_EMPTY_INPUT,
+		...config.emptyInput
+	};
+	store.validationId = 0;
+	store.submissionId = 0;
+	store.validate = config.validate ?? "submit";
+	store.revalidate = config.revalidate ?? "input";
+	store.parse = parse;
+	store.isSubmitting = createSignal(false);
+	store.isSubmitted = createSignal(false);
+	store.isValidating = createSignal(false);
+	initializeFieldStore(store, store, config.schema, config.initialInput, []);
+	return store;
+}
+
+//#endregion
+//#region src/form/decodeFormData/decodeFormData.ts
+const NUMBER_REGEX = /^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?$/u;
+const ISO_DATE_TIME_REGEX = /^\d{4}-(?:0[1-9]|1[0-2])-(?:[12]\d|0[1-9]|3[01])T(?:0\d|1\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?$/u;
+const MAX_ARRAY_LENGTH = 5e3;
+/**
+* Unwraps wrapper and lazy schemas until a concrete schema is reached.
+*
+* @param schema The schema to unwrap.
+*
+* @returns The unwrapped schema.
+*/
+function unwrapSchema(schema) {
+	switch (schema.type) {
+		case "exact_optional":
+		case "nullable":
+		case "nullish":
+		case "optional":
+		case "undefinedable":
+		case "non_nullable":
+		case "non_nullish":
+		case "non_optional": return unwrapSchema(schema.wrapped);
+		case "lazy": return unwrapSchema(schema.getter(void 0));
+		default: return schema;
+	}
+}
+/**
+* Returns the child schema for the given key by traversing objects, arrays,
+* tuples and schema options. Returns `undefined` if no child schema is found.
+*
+* @param schema The parent schema.
+* @param key The path key.
+*
+* @returns The child schema or `undefined`.
+*/
+function getChildSchema(schema, key) {
+	if (schema) {
+		const unwrapped = unwrapSchema(schema);
+		if (unwrapped.type === "object" || unwrapped.type === "loose_object" || unwrapped.type === "strict_object") return unwrapped.entries[key];
+		if (unwrapped.type === "array") return unwrapped.item;
+		if (unwrapped.type === "tuple" || unwrapped.type === "loose_tuple" || unwrapped.type === "strict_tuple") return unwrapped.items[key];
+		if (unwrapped.type === "union" || unwrapped.type === "intersect" || unwrapped.type === "variant") for (const option of unwrapped.options) {
+			const childSchema = getChildSchema(option, key);
+			if (childSchema !== void 0) return childSchema;
+		}
+	}
+}
+/**
+* Decodes a stringified date based on its format. Empty strings become `null`.
+*
+* @param value The stringified value.
+*
+* @returns The decoded date.
+*/
+function decodeDate(value) {
+	if (!value || value === "null") return null;
+	if (value === "undefined") return;
+	if (ISO_DATE_TIME_REGEX.test(value)) return /* @__PURE__ */ new Date(`${value}Z`);
+	return new Date(value);
+}
+/**
+* Decodes a stringified boolean. Empty strings become `null`.
+*
+* @param value The stringified value.
+*
+* @returns The decoded boolean.
+*/
+function decodeBoolean(value) {
+	if (!value || value === "null") return null;
+	if (value === "undefined") return;
+	return !(value === "false" || value === "off" || value === "0");
+}
+/**
+* Decodes a stringified number. Empty strings become `null` and non-numeric
+* values become `NaN`.
+*
+* @param value The stringified value.
+*
+* @returns The decoded number.
+*/
+function decodeNumber(value) {
+	if (!value || value === "null") return null;
+	if (value === "undefined") return;
+	if (NUMBER_REGEX.test(value)) return Number(value);
+	return NaN;
+}
+/**
+* Decodes a stringified bigint. Empty strings become `null` and invalid values
+* are returned unchanged.
+*
+* @param value The stringified value.
+*
+* @returns The decoded bigint.
+*/
+function decodeBigint(value) {
+	if (!value || value === "null") return null;
+	if (value === "undefined") return;
+	try {
+		return BigInt(value);
+	} catch {
+		return value;
+	}
+}
+/**
+* Decodes a single form data value based on the concrete schema type. Files
+* and unknown types are returned unchanged.
+*
+* @param value The form data value.
+* @param schema The schema of the value.
+*
+* @returns The decoded value.
+*/
+function decodeValue(value, schema) {
+	if (typeof value !== "string" || !schema) return value;
+	switch (unwrapSchema(schema).type) {
+		case "number": return decodeNumber(value);
+		case "boolean": return decodeBoolean(value);
+		case "date": return decodeDate(value);
+		case "bigint": return decodeBigint(value);
+		default: return value;
+	}
+}
+/**
+* Fills in default values that are lost during the form data transfer. Booleans
+* of unchecked checkboxes become `false` and absent arrays become empty. Only
+* containers that are present in the decoded data are completed.
+*
+* @param schema The schema of the value.
+* @param parent The parent object or array holding the value.
+* @param key The key of the value within its parent.
+*/
+function fillDefaults(schema, parent, key) {
+	const unwrappedSchema = unwrapSchema(schema);
+	if (unwrappedSchema.type === "boolean") {
+		if (parent[key] === void 0) parent[key] = false;
+	} else if (unwrappedSchema.type === "array") if (Array.isArray(parent[key])) for (let index = 0; index < parent[key].length; index++) fillDefaults(unwrappedSchema.item, parent[key], index);
+	else parent[key] = [];
+	else if (unwrappedSchema.type === "tuple" || unwrappedSchema.type === "loose_tuple" || unwrappedSchema.type === "strict_tuple") {
+		if (Array.isArray(parent[key])) for (let index = 0; index < unwrappedSchema.items.length; index++) fillDefaults(unwrappedSchema.items[index], parent[key], index);
+	} else if (unwrappedSchema.type === "object" || unwrappedSchema.type === "loose_object" || unwrappedSchema.type === "strict_object") {
+		if (parent[key] && typeof parent[key] === "object") for (const entryKey in unwrappedSchema.entries) fillDefaults(unwrappedSchema.entries[entryKey], parent[key], entryKey);
+	} else if (unwrappedSchema.type === "union" || unwrappedSchema.type === "intersect" || unwrappedSchema.type === "variant") for (const option of unwrappedSchema.options) fillDefaults(option, parent, key);
+}
+/**
+* Decodes the entries of a form data object into nested form values using the
+* Valibot schema as the source of truth. Information that is lost during the
+* transfer via HTTP, like numbers, booleans, dates and unchecked checkboxes,
+* is restored based on the schema.
+*
+* The keys of the form data are expected to be the stringified field paths that
+* Formisch assigns to its field elements (for example `["todos",0,"label"]`).
+*
+* @param schema The form schema.
+* @param formData The form data object.
+*
+* @returns The decoded form values.
+*/
+/* @__NO_SIDE_EFFECTS__ */
+function decodeFormData(schema, formData) {
+	const values = {};
+	formData.forEach((value, key) => {
+		let path = null;
+		try {
+			path = JSON.parse(key);
+		} catch {}
+		if (Array.isArray(path) && path.length > 0 && (typeof value === "string" || value.size > 0 || value.name !== "")) {
+			let parentValue = values;
+			let parentSchema = schema;
+			for (let index = 0; index < path.length; index++) {
+				const segment = path[index];
+				if (typeof segment !== "string" && typeof segment !== "number" || segment === "" || segment === "__proto__" || segment === "prototype" || segment === "constructor") break;
+				if (Array.isArray(parentValue)) {
+					if (typeof segment === "string") break;
+					if (segment >= MAX_ARRAY_LENGTH) throw new Error(`Array exceeds the maximum length of ${MAX_ARRAY_LENGTH}`);
+				}
+				const childSchema = getChildSchema(parentSchema, segment);
+				if (index === path.length - 1) {
+					const unwrappedSchema = childSchema && unwrapSchema(childSchema);
+					if (unwrappedSchema && unwrappedSchema.type === "array") {
+						parentValue[segment] ??= [];
+						parentValue[segment].push(decodeValue(value, unwrappedSchema.item));
+					} else parentValue[segment] = decodeValue(value, childSchema);
+				} else {
+					if (parentValue[segment] == null) {
+						const schemaType = childSchema && unwrapSchema(childSchema).type;
+						parentValue[segment] = schemaType === "array" || schemaType === "tuple" || schemaType === "loose_tuple" || schemaType === "strict_tuple" ? [] : {};
+					} else if (typeof parentValue[segment] !== "object") break;
+					parentValue = parentValue[segment];
+					parentSchema = childSchema;
+				}
+			}
+		}
+	});
+	fillDefaults(schema, { values }, "values");
+	return values;
+}
+
+//#endregion
+//#region src/form/validateFormInput/validateFormInput.ts
+/**
+* Validates the form input using the configured Valibot schema. Parses the
+* current form input, processes validation issues, assigns errors to fields,
+* and optionally focuses the first field with an error.
+*
+* @param internalFormStore The form store to validate.
+* @param config The validation configuration.
+*
+* @returns The Valibot validation result.
+*/
+async function validateFormInput(internalFormStore, config) {
+	const validationId = ++internalFormStore.validationId;
+	internalFormStore.isValidating.value = true;
+	try {
+		const result = await internalFormStore.parse(untrack(() => /* @__PURE__ */ getFieldInput(internalFormStore)));
+		if (internalFormStore.validationId !== validationId) return result;
+		let rootErrors;
+		let nestedErrors;
+		if (result.issues) {
+			nestedErrors = {};
+			for (const issue of result.issues) if (issue.path) {
+				const path = [];
+				for (const pathItem of issue.path) {
+					const key = pathItem.key;
+					const keyType = typeof key;
+					const itemType = pathItem.type;
+					if (keyType !== "string" && keyType !== "number" || itemType === "map" || itemType === "set") break;
+					path.push(key);
+				}
+				const name = JSON.stringify(path);
+				const fieldErrors = nestedErrors[name];
+				if (fieldErrors) fieldErrors.push(issue.message);
+				else nestedErrors[name] = [issue.message];
+			} else if (rootErrors) rootErrors.push(issue.message);
+			else rootErrors = [issue.message];
+		}
+		let shouldFocus = config?.shouldFocus ?? false;
+		batch(() => {
+			untrack(() => {
+				walkFieldStore(internalFormStore, (internalFieldStore) => {
+					if (internalFieldStore.path.length === 0) internalFieldStore.errors.value = rootErrors ?? null;
+					else {
+						const fieldErrors = nestedErrors?.[internalFieldStore.name] ?? null;
+						internalFieldStore.errors.value = fieldErrors;
+						if (shouldFocus && fieldErrors && focusFieldElement(internalFieldStore)) shouldFocus = false;
+					}
+				});
+			});
+			if (internalFormStore.validationId === validationId) internalFormStore.isValidating.value = false;
+		});
+		return result;
+	} catch (error) {
+		if (internalFormStore.validationId === validationId) internalFormStore.isValidating.value = false;
+		throw error;
+	}
+}
+
+//#endregion
+//#region src/form/validateIfRequired/validateIfRequired.ts
+/**
+* Validates the form input if required based on the validation mode and form
+* state. Determines whether to use initial validation mode, revalidation mode,
+* or skip validation entirely.
+*
+* @param internalFormStore The form store to validate.
+* @param internalFieldStore The field store that triggered validation.
+* @param validationMode The validation mode that triggered this check.
+*/
+function validateIfRequired(internalFormStore, internalFieldStore, validationMode) {
+	if (validationMode === (internalFormStore.validate === "initial" || (internalFormStore.validate === "submit" ? untrack(() => internalFormStore.isSubmitted.value) : untrack(() => /* @__PURE__ */ getFieldBool(internalFieldStore, "errors"))) ? internalFormStore.revalidate : internalFormStore.validate)) validateFormInput(internalFormStore);
+}
+
+//#endregion
+//#region src/values.ts
+/**
+* Internal symbol constant.
+*/
+const INTERNAL = "~internal";
+
+//#endregion
+export { DEFAULT_EMPTY_INPUT, INTERNAL, batch, copyItemState, createFormStore, createId, createSignal, decodeFormData, focusFieldElement, framework, getDirtyFieldInput, getElementInput, getFieldBool, getFieldInput, getFieldStore, initializeFieldStore, resetItemState, setFieldBool, setFieldInput, setInitialFieldInput, swapItemState, untrack, validateFormInput, validateIfRequired, walkFieldStore };

@@ -7,7 +7,7 @@ import { computed, onMounted, onUnmounted, ref } from "vue"
 import { cn } from "@/lib/utils"
 import { useCommand, useCommandGroup } from "."
 
-const props = defineProps<ListboxItemProps & { class?: HTMLAttributes["class"] }>()
+const props = defineProps<ListboxItemProps & { class?: HTMLAttributes["class"], alwaysRender?: boolean}>()
 const emits = defineEmits<ListboxItemEmits>()
 
 const delegatedProps = reactiveOmit(props, "class")
@@ -61,7 +61,7 @@ onUnmounted(() => {
 
 <template>
   <ListboxItem
-    v-if="isRender"
+    v-if="isRender || alwaysRender"
     v-bind="forwarded"
     :id="id"
     ref="itemRef"

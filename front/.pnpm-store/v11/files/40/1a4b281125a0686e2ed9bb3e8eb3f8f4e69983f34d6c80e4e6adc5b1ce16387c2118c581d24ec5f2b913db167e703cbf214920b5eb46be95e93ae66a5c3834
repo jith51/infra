@@ -1,0 +1,621 @@
+import { INTERNAL, batch, copyItemState, createFormStore, createId, focusFieldElement, getDirtyFieldInput, getFieldBool, getFieldInput, getFieldStore, initializeFieldStore, resetItemState, setFieldBool, setFieldInput, setInitialFieldInput, swapItemState, untrack, validateFormInput, validateIfRequired, walkFieldStore } from "./internals.js";
+import { computed, createElementBlock, defineComponent, guardReactiveProps, normalizeProps, onBeforeMount, onUnmounted, openBlock, renderSlot, toValue, unref } from "vue";
+import * as v from "valibot";
+
+//#region ../../packages/methods/dist/index.vue.js
+/**
+* Focuses the first focusable input element of a field. This is useful for
+* programmatically setting focus to a specific field, such as after
+* validation errors or user interactions.
+*
+* @param form The form store containing the field.
+* @param config The focus field configuration.
+*/
+function focus(form, config) {
+	const internalFieldStore = getFieldStore(form[INTERNAL], config.path);
+	if (internalFieldStore) focusFieldElement(internalFieldStore);
+}
+/* @__NO_SIDE_EFFECTS__ */
+function getDeepError(form, config) {
+	const internalFieldStore = config?.path ? getFieldStore(form[INTERNAL], config.path) : form[INTERNAL];
+	if (!internalFieldStore) return null;
+	let deepError = null;
+	walkFieldStore(internalFieldStore, (internalFieldStore$1) => {
+		const errors = internalFieldStore$1.errors.value;
+		if (errors) {
+			deepError = errors[0];
+			return true;
+		}
+	});
+	return deepError;
+}
+/* @__NO_SIDE_EFFECTS__ */
+function getDeepErrorEntries(form, config) {
+	const internalFieldStore = config?.path ? getFieldStore(form[INTERNAL], config.path) : form[INTERNAL];
+	if (!internalFieldStore) return [];
+	const entries = [];
+	walkFieldStore(internalFieldStore, (internalFieldStore$1) => {
+		const errors = internalFieldStore$1.errors.value;
+		if (errors) entries.push({
+			path: internalFieldStore$1.path,
+			errors
+		});
+	});
+	return entries;
+}
+/* @__NO_SIDE_EFFECTS__ */
+function getDeepErrorEntry(form, config) {
+	const internalFieldStore = config?.path ? getFieldStore(form[INTERNAL], config.path) : form[INTERNAL];
+	if (!internalFieldStore) return null;
+	let entry = null;
+	walkFieldStore(internalFieldStore, (internalFieldStore$1) => {
+		const errors = internalFieldStore$1.errors.value;
+		if (errors) {
+			entry = {
+				path: internalFieldStore$1.path,
+				errors
+			};
+			return true;
+		}
+	});
+	return entry;
+}
+/* @__NO_SIDE_EFFECTS__ */
+function getDeepErrors(form, config) {
+	const internalFieldStore = config?.path ? getFieldStore(form[INTERNAL], config.path) : form[INTERNAL];
+	if (!internalFieldStore) return null;
+	let deepErrors = null;
+	walkFieldStore(internalFieldStore, (internalFieldStore$1) => {
+		const errors = internalFieldStore$1.errors.value;
+		if (errors) if (deepErrors) deepErrors.push(...errors);
+		else deepErrors = [...errors];
+	});
+	return deepErrors;
+}
+/* @__NO_SIDE_EFFECTS__ */
+function getDirtyInput(form, config) {
+	const internalFieldStore = config?.path ? getFieldStore(form[INTERNAL], config.path) : form[INTERNAL];
+	return internalFieldStore ? getDirtyFieldInput(internalFieldStore) : void 0;
+}
+/* @__NO_SIDE_EFFECTS__ */
+function getDirtyPaths(form, config) {
+	const paths = [];
+	if (config?.path ? getFieldStore(form[INTERNAL], config.path) : form[INTERNAL]) {}
+	return paths;
+}
+/* @__NO_SIDE_EFFECTS__ */
+function getErrors(form, config) {
+	return (config?.path ? getFieldStore(form[INTERNAL], config.path) : form[INTERNAL])?.errors.value ?? null;
+}
+/* @__NO_SIDE_EFFECTS__ */
+function getInput(form, config) {
+	const internalFieldStore = config?.path ? getFieldStore(form[INTERNAL], config.path) : form[INTERNAL];
+	return internalFieldStore ? getFieldInput(internalFieldStore) : void 0;
+}
+/* @__NO_SIDE_EFFECTS__ */
+function handleSubmit(form, handler) {
+	return async (event) => {
+		event?.preventDefault();
+		const internalFormStore = form[INTERNAL];
+		const submissionId = ++internalFormStore.submissionId;
+		let isHandlingSubmit = false;
+		internalFormStore.isSubmitted.value = true;
+		internalFormStore.isSubmitting.value = true;
+		const validationId = internalFormStore.validationId + 1;
+		try {
+			const result = await validateFormInput(internalFormStore, { shouldFocus: true });
+			if (result.success && internalFormStore.submissionId === submissionId && internalFormStore.validationId === validationId) {
+				isHandlingSubmit = true;
+				await handler(result.output, event);
+			}
+		} catch (error) {
+			if (internalFormStore.submissionId === submissionId && (isHandlingSubmit || internalFormStore.validationId === validationId)) internalFormStore.errors.value = [error && typeof error === "object" && "message" in error && typeof error.message === "string" ? error.message : "An unknown error has occurred."];
+		} finally {
+			if (internalFormStore.submissionId === submissionId) internalFormStore.isSubmitting.value = false;
+		}
+	};
+}
+/**
+* Inserts a new item into a field array at the specified index. All items at
+* or after the insertion point are shifted up by one index.
+*
+* @param form The form store containing the field array.
+* @param config The insert configuration specifying the path, index, and initial value.
+*/
+function insert(form, config) {
+	const internalFormStore = form[INTERNAL];
+	const internalArrayStore = getFieldStore(internalFormStore, config.path);
+	if (internalArrayStore) {
+		let internalFieldStore = internalFormStore;
+		for (let index = 0; index < config.path.length - 1; index++) {
+			internalFieldStore = internalFieldStore.children[config.path[index]];
+			internalFieldStore.input.value = true;
+		}
+		const items = untrack(() => internalArrayStore.items.value);
+		const insertIndex = config.at === void 0 ? items.length : config.at;
+		if (insertIndex >= 0 && insertIndex <= items.length) batch(() => {
+			internalFormStore.validationId++;
+			internalFormStore.isValidating.value = false;
+			const newItems = [...items];
+			newItems.splice(insertIndex, 0, createId());
+			internalArrayStore.items.value = newItems;
+			for (let index = items.length; index > insertIndex; index--) {
+				if (!internalArrayStore.children[index]) {
+					internalArrayStore.children[index] = {};
+					initializeFieldStore(internalFormStore, internalArrayStore.children[index], internalArrayStore.schema.item, void 0, [...internalArrayStore.path, index]);
+				}
+				copyItemState(internalFormStore, internalArrayStore.children[index - 1], internalArrayStore.children[index]);
+			}
+			if (!internalArrayStore.children[insertIndex]) {
+				internalArrayStore.children[insertIndex] = {};
+				initializeFieldStore(internalFormStore, internalArrayStore.children[insertIndex], internalArrayStore.schema.item, config.initialInput, [...internalArrayStore.path, insertIndex]);
+			} else resetItemState(internalFormStore, internalArrayStore.children[insertIndex], config.initialInput);
+			internalArrayStore.input.value = true;
+			internalArrayStore.isTouched.value = true;
+			internalArrayStore.isEdited.value = true;
+			internalArrayStore.isDirty.value = true;
+			validateIfRequired(internalFormStore, internalArrayStore, "input");
+		});
+	}
+}
+/* @__NO_SIDE_EFFECTS__ */
+function isDirty(form, config) {
+	const internalFieldStore = config?.path ? getFieldStore(form[INTERNAL], config.path) : form[INTERNAL];
+	return internalFieldStore ? getFieldBool(internalFieldStore, "isDirty") : false;
+}
+/* @__NO_SIDE_EFFECTS__ */
+function isEdited(form, config) {
+	const internalFieldStore = config?.path ? getFieldStore(form[INTERNAL], config.path) : form[INTERNAL];
+	return internalFieldStore ? getFieldBool(internalFieldStore, "isEdited") : false;
+}
+/* @__NO_SIDE_EFFECTS__ */
+function isTouched(form, config) {
+	const internalFieldStore = config?.path ? getFieldStore(form[INTERNAL], config.path) : form[INTERNAL];
+	return internalFieldStore ? getFieldBool(internalFieldStore, "isTouched") : false;
+}
+/* @__NO_SIDE_EFFECTS__ */
+function isValid(form, config) {
+	const internalFieldStore = config?.path ? getFieldStore(form[INTERNAL], config.path) : form[INTERNAL];
+	return !internalFieldStore || !getFieldBool(internalFieldStore, "errors");
+}
+/**
+* Moves an item from one index to another within a field array. All items
+* between the source and destination indices are shifted accordingly.
+*
+* @param form The form store containing the field array.
+* @param config The move configuration specifying the path and source/destination indices.
+*/
+function move(form, config) {
+	const internalFormStore = form[INTERNAL];
+	const internalArrayStore = getFieldStore(internalFormStore, config.path);
+	if (internalArrayStore) {
+		const items = untrack(() => internalArrayStore.items.value);
+		if (config.from >= 0 && config.from <= items.length - 1 && config.to >= 0 && config.to <= items.length - 1 && config.from !== config.to) batch(() => {
+			internalFormStore.validationId++;
+			internalFormStore.isValidating.value = false;
+			const newItems = [...items];
+			newItems.splice(config.to, 0, newItems.splice(config.from, 1)[0]);
+			internalArrayStore.items.value = newItems;
+			const tempInternalFieldStore = {};
+			initializeFieldStore(internalFormStore, tempInternalFieldStore, internalArrayStore.schema.item, void 0, []);
+			copyItemState(internalFormStore, internalArrayStore.children[config.from], tempInternalFieldStore);
+			if (config.from < config.to) for (let index = config.from; index < config.to; index++) copyItemState(internalFormStore, internalArrayStore.children[index + 1], internalArrayStore.children[index]);
+			else for (let index = config.from; index > config.to; index--) copyItemState(internalFormStore, internalArrayStore.children[index - 1], internalArrayStore.children[index]);
+			copyItemState(internalFormStore, tempInternalFieldStore, internalArrayStore.children[config.to]);
+			internalArrayStore.isTouched.value = true;
+			internalArrayStore.isEdited.value = true;
+			internalArrayStore.isDirty.value = internalArrayStore.startItems.value.join() !== newItems.join();
+			validateIfRequired(internalFormStore, internalArrayStore, "input");
+		});
+	}
+}
+/**
+* Picks only the dirty parts of the given value, using the form's dirty fields
+* as a structural mask. Arrays are treated as atomic and object keys without a
+* dirty descendant are omitted. Returns `undefined` if no field is dirty.
+* Useful for filtering a validated output down to its changed parts before
+* submitting.
+*
+* @param form The form store providing the dirty mask.
+* @param config The pick dirty configuration.
+*
+* @returns The dirty parts of the value, or `undefined`.
+*/
+/* @__NO_SIDE_EFFECTS__ */
+function pickDirty(form, config) {
+	if (!getFieldBool(form[INTERNAL], "isDirty")) return;
+	const result = /* @__PURE__ */ pickFieldValue(form[INTERNAL], config.from);
+	return Object.keys(result).length ? result : void 0;
+}
+/**
+* Recursively picks the dirty parts of a value using the field store as a
+* structural mask, reading from the supplied value rather than the form's own
+* input. Objects with non-nullish input recurse into their dirty children that
+* are present in the value, while arrays, primitives, nullish-cleared fields
+* and shape-diverging values are returned as-is.
+*
+* @param internalFieldStore The field store used as the dirty mask.
+* @param value The value to pick the dirty parts from.
+*
+* @returns The dirty parts of the value.
+*/
+/* @__NO_SIDE_EFFECTS__ */
+function pickFieldValue(internalFieldStore, value) {
+	if (internalFieldStore.kind === "object" && internalFieldStore.input.value && value && typeof value === "object" && !Array.isArray(value)) {
+		const result = {};
+		for (const key in internalFieldStore.children) {
+			const child = internalFieldStore.children[key];
+			if (getFieldBool(child, "isDirty") && key in value) result[key] = /* @__PURE__ */ pickFieldValue(child, value[key]);
+		}
+		return result;
+	}
+	return value;
+}
+/**
+* Removes an item from a field array at the specified index. All items after
+* the removed item are shifted down by one index.
+*
+* @param form The form store containing the field array.
+* @param config The remove configuration specifying the path and index.
+*/
+function remove(form, config) {
+	const internalFormStore = form[INTERNAL];
+	const internalArrayStore = getFieldStore(internalFormStore, config.path);
+	if (internalArrayStore) {
+		const items = untrack(() => internalArrayStore.items.value);
+		if (config.at >= 0 && config.at <= items.length - 1) batch(() => {
+			internalFormStore.validationId++;
+			internalFormStore.isValidating.value = false;
+			const newItems = [...items];
+			newItems.splice(config.at, 1);
+			internalArrayStore.items.value = newItems;
+			for (let index = config.at; index < items.length - 1; index++) copyItemState(internalFormStore, internalArrayStore.children[index + 1], internalArrayStore.children[index]);
+			internalArrayStore.isTouched.value = true;
+			internalArrayStore.isEdited.value = true;
+			internalArrayStore.isDirty.value = internalArrayStore.startItems.value.join() !== newItems.join();
+			validateIfRequired(internalFormStore, internalArrayStore, "input");
+		});
+	}
+}
+/**
+* Replaces an item in a field array at the specified index with new initial input.
+*
+* @param form The form store containing the field array.
+* @param config The replace configuration specifying the path, index, and initial input.
+*/
+function replace(form, config) {
+	const internalFormStore = form[INTERNAL];
+	const internalArrayStore = getFieldStore(internalFormStore, config.path);
+	if (internalArrayStore) {
+		const items = untrack(() => internalArrayStore.items.value);
+		if (config.at >= 0 && config.at <= items.length - 1) batch(() => {
+			internalFormStore.validationId++;
+			internalFormStore.isValidating.value = false;
+			const newItems = [...items];
+			newItems[config.at] = createId();
+			internalArrayStore.items.value = newItems;
+			resetItemState(internalFormStore, internalArrayStore.children[config.at], config.initialInput);
+			internalArrayStore.isTouched.value = true;
+			internalArrayStore.isEdited.value = true;
+			internalArrayStore.isDirty.value = true;
+			validateIfRequired(internalFormStore, internalArrayStore, "input");
+		});
+	}
+}
+function reset(form, config) {
+	batch(() => {
+		untrack(() => {
+			const internalFormStore = form[INTERNAL];
+			const internalFieldStore = config?.path ? getFieldStore(internalFormStore, config.path) : internalFormStore;
+			if (internalFieldStore) {
+				internalFormStore.validationId++;
+				internalFormStore.isValidating.value = false;
+				if (config && "initialInput" in config) setInitialFieldInput(internalFormStore, internalFieldStore, config.initialInput);
+				walkFieldStore(internalFieldStore, (internalFieldStore$1) => {
+					internalFieldStore$1.elements = internalFieldStore$1.initialElements;
+					if (!config?.keepErrors) internalFieldStore$1.errors.value = null;
+					if (!config?.keepTouched) internalFieldStore$1.isTouched.value = false;
+					if (!config?.keepEdited) internalFieldStore$1.isEdited.value = false;
+					internalFieldStore$1.startInput.value = internalFieldStore$1.initialInput.value;
+					if (!config?.keepInput) internalFieldStore$1.input.value = internalFieldStore$1.initialInput.value;
+					if (internalFieldStore$1.kind === "array") {
+						internalFieldStore$1.startItems.value = internalFieldStore$1.initialItems.value;
+						if (!config?.keepInput || internalFieldStore$1.startItems.value.length === internalFieldStore$1.items.value.length) internalFieldStore$1.items.value = internalFieldStore$1.initialItems.value;
+						internalFieldStore$1.isDirty.value = internalFieldStore$1.startInput.value !== internalFieldStore$1.input.value || internalFieldStore$1.startItems.value !== internalFieldStore$1.items.value;
+					} else if (internalFieldStore$1.kind === "object") internalFieldStore$1.isDirty.value = internalFieldStore$1.startInput.value !== internalFieldStore$1.input.value;
+					else {
+						const startInput = internalFieldStore$1.startInput.value;
+						const input = internalFieldStore$1.input.value;
+						internalFieldStore$1.isDirty.value = startInput !== input && (startInput != null || input !== "" && !Number.isNaN(input));
+						for (const element of internalFieldStore$1.elements) if (element.type === "file") element.value = "";
+					}
+				});
+				if (!config?.path) {
+					internalFormStore.submissionId++;
+					internalFormStore.isSubmitting.value = false;
+					if (!config?.keepSubmitted) internalFormStore.isSubmitted.value = false;
+					if (internalFormStore.validate === "initial") validateFormInput(internalFormStore);
+				}
+			}
+		});
+	});
+}
+function setErrors(form, config) {
+	const internalFieldStore = config.path ? getFieldStore(form[INTERNAL], config.path) : form[INTERNAL];
+	if (internalFieldStore) internalFieldStore.errors.value = config.errors;
+}
+function setInput(form, config) {
+	batch(() => {
+		const internalFormStore = form[INTERNAL];
+		const internalFieldStore = config.path ? getFieldStore(internalFormStore, config.path) : internalFormStore;
+		if (internalFieldStore) {
+			setFieldInput(internalFormStore, config.path ?? [], config.input);
+			validateIfRequired(internalFormStore, internalFieldStore, "input");
+		}
+	});
+}
+/**
+* Programmatically requests form submission by calling the native
+* `requestSubmit()` method on the underlying form element.
+*
+* @param form The form store to submit.
+*/
+function submit(form) {
+	form[INTERNAL].element?.requestSubmit();
+}
+/**
+* Swaps two items in a field array by exchanging their positions.
+*
+* @param form The form store containing the field array.
+* @param config The swap configuration specifying the path and indices to swap.
+*/
+function swap(form, config) {
+	const internalFormStore = form[INTERNAL];
+	const internalArrayStore = getFieldStore(internalFormStore, config.path);
+	if (internalArrayStore) {
+		const items = untrack(() => internalArrayStore.items.value);
+		if (config.at >= 0 && config.at <= items.length - 1 && config.and >= 0 && config.and <= items.length - 1 && config.at !== config.and) batch(() => {
+			internalFormStore.validationId++;
+			internalFormStore.isValidating.value = false;
+			const newItems = [...items];
+			const tempItemId = newItems[config.at];
+			newItems[config.at] = newItems[config.and];
+			newItems[config.and] = tempItemId;
+			internalArrayStore.items.value = newItems;
+			swapItemState(internalFormStore, internalArrayStore.children[config.at], internalArrayStore.children[config.and]);
+			internalArrayStore.isTouched.value = true;
+			internalArrayStore.isEdited.value = true;
+			internalArrayStore.isDirty.value = internalArrayStore.startItems.value.join() !== newItems.join();
+			validateIfRequired(internalFormStore, internalArrayStore, "input");
+		});
+	}
+}
+/**
+* Validates the entire form input against its schema. Returns a safe parse result
+* indicating success or failure with detailed issues. Optionally focuses the first
+* field with validation errors.
+*
+* @param form The form store to validate.
+* @param config The validate form configuration specifying focus behavior.
+*
+* @returns A promise resolving to the validation result.
+*/
+function validate(form, config) {
+	return validateFormInput(form[INTERNAL], config);
+}
+
+//#endregion
+//#region src/composables/useField/useField.ts
+/* @__NO_SIDE_EFFECTS__ */
+function useField(form, config) {
+	const path = computed(() => toValue(config).path);
+	const internalFormStore = computed(() => toValue(form)[INTERNAL]);
+	const internalFieldStore = computed(() => getFieldStore(internalFormStore.value, path.value));
+	onUnmounted(() => {
+		const internalFieldStoreValue = internalFieldStore.value;
+		const elements = internalFieldStoreValue.elements.filter((element) => element.isConnected);
+		if (internalFieldStoreValue.elements === internalFieldStoreValue.initialElements) internalFieldStoreValue.initialElements = elements;
+		else internalFieldStoreValue.initialElements = internalFieldStoreValue.initialElements.filter((element) => element.isConnected);
+		internalFieldStoreValue.elements = elements;
+	});
+	const input = computed(() => getFieldInput(internalFieldStore.value));
+	const isTouched$1 = computed(() => getFieldBool(internalFieldStore.value, "isTouched"));
+	const isEdited$1 = computed(() => getFieldBool(internalFieldStore.value, "isEdited"));
+	const isDirty$1 = computed(() => getFieldBool(internalFieldStore.value, "isDirty"));
+	const isValid$1 = computed(() => !getFieldBool(internalFieldStore.value, "errors"));
+	return {
+		get path() {
+			return path.value;
+		},
+		get input() {
+			return input.value;
+		},
+		set input(value) {
+			setFieldInput(internalFormStore.value, path.value, value);
+			validateIfRequired(internalFormStore.value, internalFieldStore.value, "input");
+		},
+		get errors() {
+			return internalFieldStore.value.errors.value;
+		},
+		get isTouched() {
+			return isTouched$1.value;
+		},
+		get isEdited() {
+			return isEdited$1.value;
+		},
+		get isDirty() {
+			return isDirty$1.value;
+		},
+		get isValid() {
+			return isValid$1.value;
+		},
+		props: {
+			get name() {
+				return internalFieldStore.value.name;
+			},
+			autofocus: !!internalFieldStore.value.errors.value,
+			ref(element) {
+				if (element && !internalFieldStore.value.elements.includes(element)) internalFieldStore.value.elements.push(element);
+			},
+			onFocus() {
+				setFieldBool(internalFieldStore.value, "isTouched", true);
+				validateIfRequired(internalFormStore.value, internalFieldStore.value, "touch");
+			},
+			onChange() {
+				validateIfRequired(internalFormStore.value, internalFieldStore.value, "change");
+			},
+			onBlur() {
+				validateIfRequired(internalFormStore.value, internalFieldStore.value, "blur");
+			}
+		}
+	};
+}
+
+//#endregion
+//#region src/composables/useFieldArray/useFieldArray.ts
+/* @__NO_SIDE_EFFECTS__ */
+function useFieldArray(form, config) {
+	const internalFieldStore = computed(() => getFieldStore(toValue(form)[INTERNAL], toValue(config).path));
+	const isTouched$1 = computed(() => getFieldBool(internalFieldStore.value, "isTouched"));
+	const isEdited$1 = computed(() => getFieldBool(internalFieldStore.value, "isEdited"));
+	const isDirty$1 = computed(() => getFieldBool(internalFieldStore.value, "isDirty"));
+	const isValid$1 = computed(() => !getFieldBool(internalFieldStore.value, "errors"));
+	return {
+		get path() {
+			return toValue(config).path;
+		},
+		get items() {
+			return internalFieldStore.value.items.value;
+		},
+		get errors() {
+			return internalFieldStore.value.errors.value;
+		},
+		get isTouched() {
+			return isTouched$1.value;
+		},
+		get isEdited() {
+			return isEdited$1.value;
+		},
+		get isDirty() {
+			return isDirty$1.value;
+		},
+		get isValid() {
+			return isValid$1.value;
+		}
+	};
+}
+
+//#endregion
+//#region src/composables/useForm/useForm.ts
+/* @__NO_SIDE_EFFECTS__ */
+function useForm(config) {
+	const internalFormStore = createFormStore(config, (input) => v.safeParseAsync(config.schema, input));
+	onBeforeMount(async () => {
+		if (config.validate === "initial") await validateFormInput(internalFormStore);
+	});
+	const isTouched$1 = computed(() => getFieldBool(internalFormStore, "isTouched"));
+	const isEdited$1 = computed(() => getFieldBool(internalFormStore, "isEdited"));
+	const isDirty$1 = computed(() => getFieldBool(internalFormStore, "isDirty"));
+	const isValid$1 = computed(() => !getFieldBool(internalFormStore, "errors"));
+	return {
+		[INTERNAL]: internalFormStore,
+		get isSubmitting() {
+			return internalFormStore.isSubmitting.value;
+		},
+		get isSubmitted() {
+			return internalFormStore.isSubmitted.value;
+		},
+		get isValidating() {
+			return internalFormStore.isValidating.value;
+		},
+		get isTouched() {
+			return isTouched$1.value;
+		},
+		get isEdited() {
+			return isEdited$1.value;
+		},
+		get isDirty() {
+			return isDirty$1.value;
+		},
+		get isValid() {
+			return isValid$1.value;
+		},
+		get errors() {
+			return internalFormStore.errors.value;
+		}
+	};
+}
+
+//#endregion
+//#region src/components/Field/Field.vue?vue&type=script&setup=true&lang.ts
+var Field_vue_vue_type_script_setup_true_lang_default = /* @__PURE__ */ defineComponent({
+	inheritAttrs: false,
+	__name: "Field",
+	props: {
+		of: {},
+		path: {}
+	},
+	setup(__props) {
+		const props = __props;
+		const field = /* @__PURE__ */ useField(() => props.of, () => ({ path: props.path }));
+		return (_ctx, _cache) => {
+			return renderSlot(_ctx.$slots, "default", normalizeProps(guardReactiveProps(unref(field))));
+		};
+	}
+});
+
+//#endregion
+//#region src/components/Field/Field.vue
+var Field_default = Field_vue_vue_type_script_setup_true_lang_default;
+
+//#endregion
+//#region src/components/FieldArray/FieldArray.vue?vue&type=script&setup=true&lang.ts
+var FieldArray_vue_vue_type_script_setup_true_lang_default = /* @__PURE__ */ defineComponent({
+	inheritAttrs: false,
+	__name: "FieldArray",
+	props: {
+		of: {},
+		path: {}
+	},
+	setup(__props) {
+		const props = __props;
+		const field = /* @__PURE__ */ useFieldArray(() => props.of, () => ({ path: props.path }));
+		return (_ctx, _cache) => {
+			return renderSlot(_ctx.$slots, "default", normalizeProps(guardReactiveProps(unref(field))));
+		};
+	}
+});
+
+//#endregion
+//#region src/components/FieldArray/FieldArray.vue
+var FieldArray_default = FieldArray_vue_vue_type_script_setup_true_lang_default;
+
+//#endregion
+//#region src/components/Form/Form.vue?vue&type=script&setup=true&lang.ts
+var Form_vue_vue_type_script_setup_true_lang_default = /* @__PURE__ */ defineComponent({
+	__name: "Form",
+	props: {
+		of: {},
+		onSubmit: { type: Function }
+	},
+	setup(__props) {
+		const props = __props;
+		const handler = computed(() => handleSubmit(props.of, props.onSubmit));
+		return (_ctx, _cache) => {
+			return openBlock(), createElementBlock("form", {
+				novalidate: "",
+				ref: (element) => {
+					if (element) __props.of[unref(INTERNAL)].element = element;
+				},
+				onSubmit: _cache[0] || (_cache[0] = (...args) => handler.value && handler.value(...args))
+			}, [renderSlot(_ctx.$slots, "default")], 544);
+		};
+	}
+});
+
+//#endregion
+//#region src/components/Form/Form.vue
+var Form_default = Form_vue_vue_type_script_setup_true_lang_default;
+
+//#endregion
+export { Field_default as Field, FieldArray_default as FieldArray, Form_default as Form, focus, getDeepError, getDeepErrorEntries, getDeepErrorEntry, getDeepErrors, getDirtyInput, getDirtyPaths, getErrors, getInput, handleSubmit, insert, isDirty, isEdited, isTouched, isValid, move, pickDirty, remove, replace, reset, setErrors, setInput, submit, swap, useField, useFieldArray, useForm, validate };

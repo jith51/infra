@@ -11,7 +11,8 @@
 // Tous les props et emits passer lors de l'appel de InputField sont passer à FormField
 import type { FormApi } from "@tanstack/vue-form"
 import type { FieldType } from "@/types/field"
-console.log('fdsfsd')
+import type { DateSelect } from "@/components/my-ui"
+
 withDefaults(
     defineProps<{
         form: FormApi<T>

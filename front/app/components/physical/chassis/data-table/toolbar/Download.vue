@@ -5,19 +5,25 @@ import { toast } from 'vue-sonner'
 // Icones
 import { Download } from "@lucide/vue"
 
+import CommandSelect from '@/components/my-ui/CommandSelect.vue'
 // Récupération du context et construction de l'arbre des powertypes
-import { useChassisClassesTableContext } from '../context'
-const { chassisPowertypes } = useChassisClassesTableContext()
+// import { useChassisClassesTableContext } from '../context'
+// const { chassisPowertypes } = useChassisClassesTableContext()
 
-import { useTree } from '@/components/tree/tree_node'
-const { tree: chassisPowertypesTree } = useTree(chassisPowertypes)
+const props = defineProps<{
+    chassisClasses: {
+        id: string,
+        name: string
+    }[]
+}>()
+
 
 // Pour l'upload
 const formValue = ref({
     structOnly: false,
-    chassisPowertypeId: null
+    chassisClassId: null
 })
-const {loadFile, fileResult, onLoadFileError } = useChassisClassGraphQl()
+const {loadFile, fileResult, onLoadFileError } = useChassisGraphQl()
 import { CombinedGraphQLErrors } from "@apollo/client/errors"
 onLoadFileError((error) => {
     if (CombinedGraphQLErrors.is(error)){ 
@@ -26,7 +32,7 @@ onLoadFileError((error) => {
 })
     
 watchResult(fileResult, (newResult) => {
-    const file = newResult.chassisClassesFile
+    const file = newResult.chassisFile
 
     if (!file?.contentBase64 || !file?.filename || !file?.type) return
 
@@ -64,7 +70,7 @@ watchResult(fileResult, (newResult) => {
             <DialogHeader>
                 <DialogTitle>Téléchargement</DialogTitle>
                 <DialogDescription>
-                    Génération d'un fichier excel de classes de chassis
+                    Génération d'un fichier excel de chassis
                 </DialogDescription>
             </DialogHeader>
             <form 
@@ -75,11 +81,12 @@ watchResult(fileResult, (newResult) => {
                 }"
             >
                 <div v-if="!formValue.structOnly" class="flex flex-col gap-2">
-                    <Label for="airplane-mode">Type de chassis</Label>
-                    <TreeSelect v-model="formValue.chassisPowertypeId" :tree="chassisPowertypesTree"/>
+                    <Label for="airplane-mode">Classe de chassis</Label>
+                    <CommandSelect v-model="formValue.chassisClassId" :options="chassisClasses" :with-delete-option="false"/>
+                    <!-- <CommandSelect v-model="formValue.chassisClassId" />                     -->
                 </div>
                 <div class="flex w-full items-end space-x-2">
-                    <Switch id="airplane-mode" v-model="formValue.structOnly" @update:model-value="formValue.chassisPowertypeId = null"/>
+                    <Switch id="airplane-mode" v-model="formValue.structOnly" @update:model-value="formValue.chassisClassId = null"/>
                     <Label for="airplane-mode">Uniquement la structure</Label>
                 </div>
                 <DialogFooter class="mt-4">

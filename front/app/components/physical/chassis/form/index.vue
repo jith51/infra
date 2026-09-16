@@ -8,64 +8,60 @@
                 @submit.prevent.stop="form.handleSubmit()"
             >
                 <div class="grid grid-cols-2 4xl:grid-cols-4  gap-10 [&>div]:gap-5">
-                    <FieldGroup>
+                    <FieldGroup class="order-1">
                         <!-- Name, Type -->
                         <FieldSet class="mb-4 border-l border-grey-200 pl-3">
+                            <!-- Name -->
                             <InputField :form name='name' label="Nom" />
+                            <!-- Class de Chassis -->
                             <CommandSelectField 
-                                :form 
+                                :form
                                 name="chassisClassId" 
                                 label="Classe de chassis"
                                 :options="chassisClasses"
+                                :with-delete-option="false"
                                 @option-selected="chassisClassChange"
                             />
-                            <ComboTag2/>
-                            <form.Field name="tagIds">
-                                <template #default="{ field }">
-                                     <div class="h-full flex flex-col gap-5 overflow-hidden">
-                                        <ComboTag :id="field.name"
-                                            :name="field.name"
-                                            :model-value="field.state.value"
-                                            :options="props.tags"
-                                        />
-                                    </div>
-                                </template>
-                            </form.Field>
+                            <!-- Name -->
+                            <InputField :form name='serialNumber' label="Serial Number" />
+                            <!-- Tags -->
+                             <ComboTagField
+                                :form
+                                name="tagIds"
+                                label="Tags"
+                                :options="props.tags"
+                                @add="mutateTag"
+                                @remove="deleteTag"
+                             />
                         </FieldSet>
-                        <ComboTag :model-value="toto" :options="props.tags" name="test"/>
-                        {{ toto }}
                         <!-- Custom Attribute -->
                         <FieldSet class="mb-4 border-l border-grey-200 pl-3">
-                            <template v-for="customAttributesField in chassisClass?.customAttributesDefinition">
-                                <DynamicField
-                                    :form 
-                                    :type="customAttributesField.type"
-                                    :name="`customAttributes.${customAttributesField!.name}`"
-                                    :label="customAttributesField!.label"
-                                    :validators="{
-                                        onChange: ({ value } : {value: string}) => {
-                                            const result = validateField(customAttributesField.type, value)
-                                            if (!result.success) {
-                                                return result.issues[0].message
-                                            }
-                                            return undefined
-                                        }
-                                    }"
-                                />
-                            </template>
+                            <CustomAttributesField :form :customAttributesDefinition="chassisClass?.customAttributesDefinition ?? []" />
                         </FieldSet>
                     </FieldGroup>
-                    <FieldGroup>
-                        <!-- Attributes -->
+                    <FieldGroup v-if="chassisClass" class="order-2 4xl:order-3">
+                        <FieldSet class="mb-4 border-l border-grey-200 pl-3">
+                            <ChassisClassCard :chassisClass/>
+                        </FieldSet>
+                    </FieldGroup>
+                    <FieldGroup class="col-span-2 order-3 4xl:order-2">
+                        <!-- Components -->
+                         <FieldSet class="mb-4 border-l border-grey-200 pl-3">
+                            <ComponentsField :form name="components"/>
+                        </FieldSet>
+                        <!-- Ports -->
+                         <FieldSet class="mb-4 border-l border-grey-200 pl-3">
+                            <PortsField :form name="ports" :availablePorts/>
+                        </FieldSet>
                    </FieldGroup>
                 </div>
                 <form.Subscribe>
                     <template v-slot="{ canSubmit, isSubmitting }">
-                        <div class="flex w-full justify-end gap-4">
+                        <div class="flex w-full justify-end gap-4 pt-2">
                             <Button type="submit" form="physical_chassis_form" :disabled="!canSubmit">
                                 {{ isSubmitting ? '...' : 'Submit' }}
                             </Button>
-                            <Button variant="outline" @click="navigateTo('/physical/chassis_classes/edit/')">
+                            <Button variant="outline" @click="navigateTo('/physical/chassis/edit/')">
                                 New
                             </Button>
                         </div>
@@ -83,26 +79,25 @@
     import type { ChassisType, ChassisFormType } from '@/types/physical/chassis'
     import type { ChassisClassType } from '@/types/physical/chassis_class'
     import type { OptionType } from '@/types/base'
-    // import type { CustomAttributeDefinitionType } from '@/types/physical/custom_attribute_definition'
-    // // Composants
-    import CommandSelectField from '@/components/form/field/CommandSelectField.vue'
-    // import PortsField from '@/components/physical/component/portsField.vue'
-    // import CustomAttributesDefinitionField from '@/components/physical/custom_attributes/CustomAttributesDefinitionField.vue'
-    import { validateField } from '@/types/field'
-    // // Schema valibot
-    // import { chassisClassFormSchema } from '@/types/physical/chassis_class'
 
-    // // Validation Form
-    // import { useForm } from '@tanstack/vue-form'
+    import { CombinedGraphQLErrors } from "@apollo/client/errors";
+    import { toast } from 'vue-sonner'
+
+    // // Composants
+
+    import ComponentsField from '@/components/physical/component/ComponentsField.vue'
+    import PortsField from '@/components/physical/component/PortsField.vue'
+    import CustomAttributesField from '@/components/physical/component/CustomAttributesField.vue'
+    import ChassisClassCard from './ChassisClassCard.vue'
+
     // import { validateField } from '@/types/field'
-    const toto = ref([])
+    
     // // Props : le ChassisClass et tous les powertypes
     const props = defineProps<{
         chassis?: ChassisType,
         chassisClasses: ChassisClassType[],
         tags: OptionType[],
-        componentTypes: OptionType[],
-        portTypes: OptionType[],
+        availablePorts: OptionType[],
     }>()
 
     // Emits : Annulation et validation
@@ -111,17 +106,17 @@
         (e: 'chassisUpdated', chassisClass: ChassisClassType): void
     }>()
 
-    // Définition de la form
+    // DEFINITION ET GESTION DE LA FORM
     import { chassisFormSchema }  from '@/types/physical/chassis'
     import { useForm } from '@tanstack/vue-form'
 
-    const initialeValue = computed(() => {
-        // On enleve tags et chassisClass si on pass un chassis en props (et pas un undefined)
+    const initialValue = computed(() => { // Dépend de props.chassis 
+        // On enleve tags (liste de nom ) et chassisClass si on pass un chassis en props (et pas un undefined)
         const { tags, chassisClass, ...result } = { tags: [], chassisClass: undefined, ...props.chassis}
         return result as ChassisFormType
     })
     const form = useForm({
-        defaultValues: initialeValue.value,
+        defaultValues: initialValue.value,
         validators: {
             onSubmit: chassisFormSchema,
             onChange: chassisFormSchema,
@@ -131,68 +126,72 @@
             mutateChassis(value)
         },
     })
+        // Lorsque l'initialValue change on met à jour la form (après un update) : TRES IMPORTANT
+        // Renseigne les id des objects crées notement (synchronisation)
+    watch(initialValue,
+        (value) => { form.reset(value) },
+        { deep: true }
+    )
 
-    // Gestion du chassisClass du chassis
-    const { loadQuery, refetchQuery, queryResult, onQueryError } = useChassisClassGraphQl()
-    async function loadChassisClass(id: string) {
-        if (!queryResult.value) {
-            await loadQuery(id, true)
-        } else {
-            await refetchQuery(id, true)
-        }
-    }
-    // TODO : gérer l'erreru
+    // GESTION DU CHASSIS CLASS
+    
     const chassisClass = ref(props.chassis?.chassisClass)
-    const chassisClassChange = async (id: string | null | undefined) => {
+
+        // Load du Chassis Class
+    const { loadQuery, queryResult, onQueryError } = useChassisClassGraphQl()
+    // TODO : gérer l'erreur
+
+        // Gestion du changement du chassis Class
+    const chassisClassChange = async (id: string | null | undefined) => {
+        // On va load le chassisClass si nécessaire
+        await setChassisClass(id)
+        // On remplie les composants et le ports avec celui du chassis
+        fillInComponentsAndPorts()
+    }
+    
+    async function setChassisClass(id: string | null | undefined) {
         if (id == null) {
             chassisClass.value = undefined
             return
-        } else {
-            if (props?.chassis?.chassisClass && props.chassis.chassisClass.id == id) {
-                chassisClass.value = props.chassis.chassisClass
-            } else {
-                await loadChassisClass(id, true)
-                chassisClass.value = queryResult?.value?.chassisClass as ChassisClassType
             }
+
+        if (props.chassis?.chassisClass?.id === id) {
+            chassisClass.value = props.chassis.chassisClass
+            return
         }
+
+        await loadQuery(id)
+        chassisClass.value = queryResult?.value?.chassisClass as ChassisClassType
     }
 
-    // // Définition des fields de la form
-    // import type { FieldType } from "@/types/field"
+    function fillInComponentsAndPorts() {
+        if (!chassisClass.value) {
+            form.setFieldValue('components', [])
+            form.setFieldValue('ports', [])
+            return
+        }
 
-    // const definedFields = ref<{name: string, label: string, type: FieldType}[]>([
-    //     // { name: "name", label: "Nom", type: "text"},
-    //     { name: "fournisseur", label: "Fournisseur", type: "text"},
-    //     { name: "model", label: "Model", type: "text"},
-    //     { name: "version", label: "Version", type: "text"},
-    //     { name: "partNumber", label: "Part Number", type: "text"},
-    //     { name: "vendorEquipmentType", label: "Vendeur Equipement Type", type: "text"},
-    //     { name: "height", label: "Hauteur (U)", type: "number"},
-    //     { name: "urlLink", label: "Lien Constructeur", type: "url"},
-    // ])
+        const components = chassisClass.value.componentSlots!.map((componentSlot) => {
+            const { id, ...componentSansId } = componentSlot
+            return componentSansId
+        })
+        form.setFieldValue('components', components)
 
-    // // Gestion des customAttributesFields
-    // const customAttributesFields = ref<CustomAttributeDefinitionType[]>()
-    // //      Initialisation à partir du chassisClass passé en props
-    // setCustomAttributesField(props.chassisClass?.chassisPowertypeId)
+        const ports = chassisClass.value.portSlots!.map((portSlot) => {
+            const { id, ...portSansId } = portSlot
 
-    // function setCustomAttributesField(chassisPowertypeId: string | null | undefined): void {
-    //     if (chassisPowertypeId == undefined) {
-    //         customAttributesFields.value = []
-    //         return
-    //     }
-    //     customAttributesFields.value = <CustomAttributeDefinitionType[]>[getNode(chassisPowertypeId), ...getAncestors(chassisPowertypeId)].map(cp => cp?.customAttributes).flat()
-    // }
-    
-    // // Mutation de la forme
-    import { CombinedGraphQLErrors } from "@apollo/client/errors";
-    import { toast } from 'vue-sonner'
+            return portSansId
+        })
 
-    const { mutateObject, onMutationError, onMutationDone, } = useChassisGraphQl()
+        form.setFieldValue('ports', ports)
+    }
+
+    // MUATATION DE LA FORM
+    const { mutateObject: mutateChassis, onMutationError, onMutationDone, } = useChassisGraphQl()
     
     onMutationDone ((value) => {
          emit('chassisUpdated', value!.data!.chassis)
-        toast.success('Chassis Class enregistré.')
+        toast.success('Chassis enregistré.')
     })
 
     onMutationError((error) => {
@@ -202,9 +201,19 @@
         }
     })
 
-    function mutateChassis(chassis: ChassisFormType) {        
-        mutateObject(chassis)
-    }
-
+    // AJOUT ET SUPPRESSION DES TAGS
+    const {mutateObject: mutateTag, onMutationError : onMutationTagError, deleteObject: deleteTag, onDeleteError: onDeleteTagError } = useTagGraphQl()
+    onMutationTagError((error) => {
+        if (CombinedGraphQLErrors.is(error)) {
+            console.log(error.errors)
+            toast.error("Echec de l'enregistrement du tag : " + error.errors)
+        }
+    })
+    onDeleteTagError((error) => {
+        if (CombinedGraphQLErrors.is(error)) {
+            console.log(error.errors)
+            toast.error("Echec de la suppression du tag : " + error.errors)
+        }
+    })
 
 </script>

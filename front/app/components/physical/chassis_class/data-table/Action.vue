@@ -1,5 +1,21 @@
 <template>
-  <DropdownMenu>
+    <div class=" flex gap-2">
+    <Button 
+      variant="outline"
+      size="sm"
+      @click="navigateTo(`/physical/chassis_classes/edit/${chassis_class_name}`)"
+    >
+      <Pencil/>
+    </Button>
+    <Button
+      variant="outline"
+      size="sm"
+      @click="deleteChassisClass(chassis_class_id)"
+    >
+      <Trash2Icon/>
+    </Button>
+  </div>
+  <!-- <DropdownMenu>
     <DropdownMenuTrigger as-child>
       <Button variant="ghost" class="h-8 w-8 p-0">
         <EllipsisVertical class="h-4 w-4"/>
@@ -17,12 +33,14 @@
         Delete
       </DropdownMenuItem>
     </DropdownMenuContent>
-  </DropdownMenu>
+  </DropdownMenu> -->
 </template>
 
 <script setup lang="ts">
   // Icones
-  import { EllipsisVertical } from "@lucide/vue"
+
+  import { Pencil, Trash2Icon } from '@lucide/vue'
+  // import { EllipsisVertical } from "@lucide/vue"
 
   // Alerte
   import { toast } from 'vue-sonner'

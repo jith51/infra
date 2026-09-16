@@ -38,19 +38,19 @@ module Excel
       def validate!
         ExcelValidator.new(spreadsheet).validate!
       rescue Excel::ExcelValidator::ValidationError => e
-        raise "Import impossible : #{e.message}"
+        raise ExcelImportError, [
+          {
+            error: e.message
+          }
+        ]
       end
 
       def import_data
         errors = []
         datas = workbook_to_h
-        puts datas
-        puts 'jhmkjkhhkm'
+
         chassis_classes = datas.delete('chassis_classes')
-        puts 'jhmkjkhhkm'
-        puts datas
-        puts chassis_classes
-        puts 'jhmkjkhhkm'
+
         powertypes = ::Physical::ChassisPowertype.pluck(:name, :id).to_h
         component_types = ::Physical::ComponentType.pluck(:name, :id).to_h
         port_types = ::Physical::PortType.pluck(:name, :id).to_h
@@ -75,8 +75,9 @@ module Excel
         object = Physical::ChassisClass.find_or_initialize_by(name: chassis_class['name'])
         chassis_class['chassis_powertype_id'] = powertypes[chassis_class['type']]
         chassis_class['custom_attributes'] = build_custom_attributes(datas, chassis_class['name'], chassis_class['type'])
-        chassis_class['components_attributes'] = build_components_attributes(object, datas, component_types, chassis_class['name'])
-        chassis_class['ports_attributes'] = build_ports_attributes(object, datas, port_types, chassis_class['name'])
+        chassis_class['component_slots_attributes'] = build_component_slots_attributes(object, datas, component_types, chassis_class['name'])
+        chassis_class['port_slots_attributes'] = build_port_slots_attributes(object, datas, port_types, chassis_class['name'])
+        chassis_class = ::NestedAttributes.prepare_nested_attributes(object, chassis_class, 'component_slots_attributes', 'port_slots_attributes')
         chassis_class['custom_attributes_definition'] = build_custom_attributes_definition(datas, chassis_class['name'])
         chassis_class.delete('type')
         object.update!(chassis_class)
@@ -94,25 +95,25 @@ module Excel
         custom_attributes&.except('chassis_class_name') || {}
       end
 
-      def build_components_attributes(object, datas, component_types, chassis_class_name)
+      def build_component_slots_attributes(object, datas, component_types, chassis_class_name)
         attributes = datas['Composants']&.select { |c| c['chassis_class_name'] == chassis_class_name } || []
         attributes.map do |c|
           c.merge(
             {
               'component_type_id' => component_types[c['type']],
-              'id' => object.components.find_by(name: c['name'])&.id
+              'id' => object.component_slots.find_by(name: c['name'])&.id
             }
           ).except('chassis_class_name', 'type')
         end
       end
 
-      def build_ports_attributes(object, datas, port_types, chassis_class_name)
+      def build_port_slots_attributes(object, datas, port_types, chassis_class_name)
         attributes = datas['Ports']&.select { |c| c['chassis_class_name'] == chassis_class_name } || []
         attributes.map do |c|
           c.merge(
             {
               'port_type_id' => port_types[c['type']],
-              'id' => object.ports.find_by(name: c['name'])&.id
+              'id' => object.port_slots.find_by(name: c['name'])&.id
             }
           ).except('chassis_class_name', 'type')
         end

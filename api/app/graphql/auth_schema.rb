@@ -4,9 +4,9 @@
 class AuthSchema < GraphQL::Schema
   # use GraphQL::Execution::Errors
   # use GraphQL::Subscriptions::ActionCableSubscriptions
-  mutation(::AuthGql::Types::MutationType)
+  mutation(::App::Auth::Types::MutationType)
 
-  query(::AuthGql::Types::QueryType)
+  # query(::App::Auth::Types::QueryType)
 
   # !!!! Voir /config/initializer/execution_error pour la customization de l'erreur
   # voir --> https://www.abhaynikam.me/posts/error-handling-in-graphql-ruby/

@@ -11,8 +11,8 @@ module App
 
         def resolve(**args)
           # On construie le json à partir du tableau des custom_attributs
-          args[:custom_attributes] = args[:custom_attributes].to_h do |custom_attibute|
-            [custom_attibute[:name], custom_attibute.to_h.except(:name)]
+          args[:custom_attributes_definition] = args[:custom_attributes_definition].to_h do |definition|
+            [definition[:name], definition.to_h.except(:name)]
           end
           baseResolver(::Physical::ChassisPowertype, args)
         end

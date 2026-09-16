@@ -1,0 +1,4 @@
+fragment LinkTypeFragment on LinkTypeType {
+  id
+  name
+}

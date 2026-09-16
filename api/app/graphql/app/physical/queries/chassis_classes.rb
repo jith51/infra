@@ -27,7 +27,7 @@ module App
             scope =
               ::Physical::ChassisClass
               .left_outer_joins(:chassis_powertype)
-              .includes(:components, :ports)
+              .includes(:component_slots, :port_slots)
             scope = scope.where('physical_chassis_classes.name LIKE ?', "%#{name}%") if name.present?
             scope = scope.where('physical_chassis_classes.fournisseur LIKE ?', "%#{fournisseur}%") if fournisseur.present?
             scope = scope.where(chassis_powertype: { id: chassis_powertype_ids }) if chassis_powertype_ids.present?

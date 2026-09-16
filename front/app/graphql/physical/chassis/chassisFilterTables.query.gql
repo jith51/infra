@@ -1,10 +1,7 @@
+#import '@/graphql/common/tag/tag.fragment.gql'
 query chassisFilterTables {
   tags(thingToCount: "chassis") {
-    id
-    name
-    ... on TagWithCounterType {
-      numberOfThings
-    }
+    ... TagFragment
   }
   chassisClasses(forFilter: true) {
     id

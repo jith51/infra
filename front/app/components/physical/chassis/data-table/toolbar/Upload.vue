@@ -6,11 +6,12 @@ import { toast } from 'vue-sonner'
 import { Upload } from "@lucide/vue"
 
 // Mutation
-const { importChassisClasses, onImportDone, onImportError } = useChassisClassGraphQl()
+const { importChassis, onImportDone, onImportError } = useChassisGraphQl()
 
-onImportDone(() => toast.success('Chassis Classes importés.'))
+onImportDone(() => toast.success('Chassis importés.'))
 
 import { CombinedGraphQLErrors } from "@apollo/client/errors";
+
 onImportError((error) => {
     if (CombinedGraphQLErrors.is(error)) {
             const error_message = error.errors[0]!.message
@@ -41,11 +42,11 @@ onImportError((error) => {
             <DialogHeader>
                 <DialogTitle>Upload File</DialogTitle>
                 <DialogDescription>
-                Import de classes de chassis
+                Import de chassis
                 </DialogDescription>
             </DialogHeader>
             <form @submit.prevent="(e) => {
-                importChassisClasses(e.target?.file.files[0]);
+                importChassis(e.target?.file.files[0]);
                 close()
             }">
                 <Input name="file" id="picture" type="file" />

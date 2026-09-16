@@ -11,13 +11,14 @@ module App
         field :type, String, null: true
         field :name, String, null: false
         field :parent_id, ID, null: true
-        field :custom_attributes, [GraphQL::Types::JSON], null: true
+        field :custom_attributes_definition, [GraphQL::Types::JSON], null: true
+        # Field suivant pour les filtres
         field :chassis_classes_number, Integer, null: true
 
-        def custom_attributes
+        def custom_attributes_definition
           # On passe de {key1: {label:'', type:''}, key2: {label:'', type:''}}
           # à [{name: key1, label:'', type:''}, {name: key2, label:'', type:''}]
-          object.custom_attributes.map do |name, attrs|
+          object.custom_attributes_definition.map do |name, attrs|
             attrs.symbolize_keys.merge(name: name)
           end
         end

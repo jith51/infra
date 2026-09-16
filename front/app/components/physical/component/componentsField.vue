@@ -8,10 +8,11 @@
             <FieldLegend variant="label" >Composants</FieldLegend>
             <FieldDescription>
                 <div class="flex border-b">
-                    <div class="w-full grid grid-cols-12 gap-2">
-                        <span class="inline-flex items-end col-span-3">Nom</span>
-                        <span class="inline-flex items-end col-span-3">Type</span>
-                        <span class="inline-flex items-end col-span-6">Description</span>  
+                    <div class="w-full grid grid-cols-5 gap-2">
+                        <span class="inline-flex items-end col-span-1">Nom</span>
+                        <span class="inline-flex items-end col-span-1">Type</span>
+                        <span class="inline-flex items-end col-span-1">Serial Number</span>
+                        <span class="inline-flex items-end col-span-2">Description</span>  
                     </div>
                     <Button
                         type="button"
@@ -27,32 +28,18 @@
             <FieldGroup class="gap-2">
                 <template v-for="(_, index) in field.state.value">
                     <div class="flex">
-                        <div class="w-full grid grid-cols-12 gap-2 items-start">
-                            <div class="col-span-3">
-                                <InputField 
-                                    :form
-                                    :name="`${name}[${index}].name`"
-                                />
-                                <!-- <InputField 
-                                    :form
-                                    :name="`${name}[${index}].name`"
-                                    :listeners="{
-                                        onChange: () => field.validate('change'),
-                                        onBlur: () => field.validate('change'),
-                                    }"
-                                /> -->
-                            </div>
-                            <div class="col-span-3">
-                                <CommandSelectField
-                                    :form 
-                                    :name="`${name}[${index}].componentTypeId`" 
-                                    :options="componentTypes"
-                                    @add-option="createNewComponentType"
-                                    @remove-option="deleteComponentType"
-                                />
-                            </div>
-                            <div class="col-span-6">
-                                <InputField :form :name="`${name}[${index}].description`"/>
+                        <div class="w-full grid grid-cols-5 gap-2 items-start">
+                            <InputField :form :name="`${name}[${index}].name`"/>
+                            <CommandSelectField
+                                :form 
+                                :name="`${name}[${index}].componentTypeId`" 
+                                :options="componentTypes"
+                                @add-option="createNewComponentType"
+                                @remove-option="deleteComponentType"
+                            />
+                            <InputField :form :name="`${name}[${index}].serialNumber`"/>
+                            <div class="col-span-2">
+                                <InputField :form :name="`${name}[${index}].description`" class="col-span-2"/>
                             </div>
                         </div>
                         <Button

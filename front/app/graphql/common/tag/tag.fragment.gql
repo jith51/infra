@@ -1,0 +1,5 @@
+fragment TagFragment on TagType {
+  id
+  name
+  numberOfThings
+}

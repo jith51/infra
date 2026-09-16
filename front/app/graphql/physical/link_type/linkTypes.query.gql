@@ -1,0 +1,7 @@
+# import './linkType.fragment.gql'
+
+query linkTypes {
+  linkTypes {
+    ...LinkTypeFragment
+  }
+}

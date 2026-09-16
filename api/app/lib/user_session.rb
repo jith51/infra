@@ -1,37 +1,88 @@
+# frozen_string_literal: true
+
+# Modul de gestion des sessions utilisteurs
 module UserSession
+  SECRET_KEY = Rails.application.secret_key_base
+  SESSION_TTL = 20.minutes
 
-    SECRET_KEY = Rails.application.secret_key_base
+  def create_session(user_id)
+    session_id = SecureRandom.uuid
 
-    def create_session(user_id)
-        # Création du jwt (qui sert de session)
-        token = jwt_encode(user_id: user_id)
-        # Enregistrement de la session dans Redis avec les info du user
-        $redis.hset(token, 'user_id', user_id)
-        $redis.expire(token, 20.minutes.to_i)
+    redis_key = redis_session_key(session_id)
 
-        return token
-    end
+    REDIS.hset(redis_key, 'user_id', user_id)
+    REDIS.expire(redis_key, SESSION_TTL.to_i)
 
-    def delete_session(token)
-        $redis.del(token) # gérer l'erreur unauthorized --> si pas de token
-    end
+    jwt_encode(
+      user_id: user_id,
+      session_id: session_id
+    )
+  end
 
-    def authenticate_session(token)
-        authenticated_token = nil
-        if AuthTokenValid?(token) && $redis.ttl(token) > 0
-            authenticated_token = token
-            $redis.expire(token, 20.minutes.to_i) # set TTL as constant
-        end
-        return authenticated_token
-    end
+  def authenticate_session(token)
+    payload = decode_token(token)
+    return nil unless payload
 
-    def jwt_encode(payload, exp = 20.minutes.from_now)
-        payload[:exp] = exp.to_i
-        JWT.encode(payload, SECRET_KEY)
-    end
+    session_id = payload['session_id']
+    return nil unless session_id
 
-    def AuthTokenValid?(token)
-        JWT.decode(token, SECRET_KEY) rescue false
-    end
+    redis_key = redis_session_key(session_id)
 
+    return nil unless REDIS.exists?(redis_key)
+    return nil unless REDIS.ttl(redis_key).positive?
+
+    # Session glissante
+    REDIS.expire(redis_key, SESSION_TTL.to_i)
+
+    payload
+  end
+
+  def refresh_session(token)
+    payload = authenticate_session(token)
+    return nil unless payload
+
+    jwt_encode(
+      user_id: payload['user_id'],
+      session_id: payload['session_id']
+    )
+  end
+
+  def delete_session(token)
+    payload = decode_token(token)
+    return unless payload
+
+    session_id = payload['session_id']
+    return unless session_id
+
+    REDIS.del(redis_session_key(session_id))
+  end
+
+  private
+
+  def redis_session_key(session_id)
+    "session:#{session_id}"
+  end
+
+  def jwt_encode(payload)
+    payload = payload.merge(
+      exp: SESSION_TTL.from_now.to_i
+    )
+
+    JWT.encode(
+      payload,
+      SECRET_KEY,
+      'HS256'
+    )
+  end
+
+  def decode_token(token)
+    JWT.decode(
+      token,
+      SECRET_KEY,
+      true,
+      algorithm: 'HS256'
+    ).first
+  rescue JWT::DecodeError, JWT::ExpiredSignature
+    nil
+  end
 end

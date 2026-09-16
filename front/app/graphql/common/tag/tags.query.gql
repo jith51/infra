@@ -1,0 +1,10 @@
+#import './tag.fragment.gql'
+
+query Tags($thingToCount: String) {
+  tags(thingToCount: $thingToCount) {
+    ...TagFragment
+    # ... on TagWithCounterType {
+    #   numberOfThings 
+    # }
+  }
+}

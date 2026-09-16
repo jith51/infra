@@ -220,9 +220,10 @@ GEM
       prism (>= 1.6.0)
       rbs (>= 4.0.0)
       tsort
+    redis (5.1.0)
+      redis-client (>= 0.17.0)
     redis-client (0.18.0)
       connection_pool
-    redis-rails (0.0.0)
     reline (0.6.3)
       io-console (~> 0.5)
     roo (3.0.0)
@@ -282,7 +283,7 @@ DEPENDENCIES
   puma (~> 5.0)
   rack-cors
   rails (~> 8.1.3)
-  redis-rails
+  redis
   roo
   sidekiq
   sidekiq-cron

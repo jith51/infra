@@ -19,7 +19,7 @@
                 </TooltipProvider>
             </div>
             <div class="pb-1">
-                <Button size="sm" variant="outline" @click="initializeChassisPowertype"> Nouveau </Button>
+                <Button size="sm" variant="outline" @click="initializeChassisPowertype()"> Nouveau </Button>
             </div>
         </div>
         <div class="flex w-full overflow-auto">
@@ -34,8 +34,10 @@
                 />
             </div>
             <div class="w-7/12 pl-2">
+                <!-- ON met une key pour recharger le composant a chaque changement : necessaire pour redefinir le schema de validation -->
                 <PhysicalChassisPowertypeForm
                     v-if="chassisPowertypeOnForm"
+                    :key="chassisPowertypeOnForm.name"
                     :chassisPowertypeAscendants="getChassisPowertypeAscendants(chassisPowertypeOnForm)"
                     :chassisPowertype="chassisPowertypeOnForm"
                     @chassis-powertype-id-updated="onChassisPowertypeIdUpdated"
@@ -126,7 +128,7 @@
 
     // Utilitaire : initialisation d'un powertype 
     function initializeChassisPowertype(parentId?: string) {
-        chassisPowertypeOnForm.value = { parentId: parentId ?? null, name: '', customAttributes: [] }
+        chassisPowertypeOnForm.value = { parentId: parentId ?? null, name: '', customAttributesDefinition: [] }
         selectedChassisPowertype.value = undefined
     }
     
@@ -136,7 +138,7 @@
         if (chassisPowertype?.parentId && chassisPowertype.parentId !== '') {
             let parent = getNode(chassisPowertype.parentId)
             while (parent) {
-                if (parent.customAttributes && parent.customAttributes.length !== 0) ancestors.push(parent) // Racine -> parent direct
+                if (parent.customAttributesDefinition && parent.customAttributesDefinition.length !== 0) ancestors.push(parent) // Racine -> parent direct
                 parent = parent.parentId ? getNode(parent.parentId) : undefined
             }
         }

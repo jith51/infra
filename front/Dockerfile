@@ -38,6 +38,8 @@ FROM base AS build
 # Install build dependencies
 RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm install --frozen-lockfile
 # Build the TypeScript
+COPY . .
+
 RUN pnpm run build
 # Create an image base
 

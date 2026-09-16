@@ -1,5 +1,5 @@
 development:
-  url: <%= ENV['CAS_URL']
+  url: <%= ENV['CAS_URL'] %>
 
 production:
-  url: <%= ENV['CAS_URL']
+  url: <%= ENV['CAS_URL'] %>

@@ -10,7 +10,7 @@ Rails.application.routes.draw do
   get "up" => "rails/health#show", as: :rails_health_check
 
   get "dna_indicateurs" => "indicateurs#dna"
-  # mount Sidekiq::Web => '/sidekiq' 
+  mount Sidekiq::Web => '/sidekiq'
 
   # graphql
   post "/graphql", to: "graphql#execute"

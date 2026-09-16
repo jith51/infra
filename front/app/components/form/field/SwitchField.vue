@@ -1,7 +1,7 @@
 <template>
     <BaseField :form :label :type mode='checked' #default="{ inputProps }">
         <div class="flex items-center space-x-2">
-            <Switch v-bind="inputProps" :default-value="false"/>
+            <Switch v-bind="inputProps" :default-value="false" :onClick="(event: Event) => event.preventDefault()"/>
         </div>
     </BaseField>
 </template>
@@ -11,9 +11,6 @@
 // Tous les props et emits passer lors de l'appel de InputField sont passer à FormField
 import type { FormApi } from "@tanstack/vue-form"
 import type { FieldType } from "@/types/field"
-onMounted(() => {
-  console.log(props.label);
-});
 
 const props = withDefaults(
     defineProps<{

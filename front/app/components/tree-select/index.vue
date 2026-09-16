@@ -1,6 +1,6 @@
 <script setup lang="ts" generic="T">
 import type { TreeNode } from '@/components/tree/tree_node'
-import { ChevronRight } from "@lucide/vue"
+import { ChevronRight, XIcon } from "@lucide/vue"
 
 const props = defineProps<{
   tree: TreeNode<T>[]
@@ -67,9 +67,19 @@ const filterTree = (nodes: TreeNode<T>[], query: string): TreeNode<T>[] => {
       <button
         class="border rounded-md px-3 py-2 w-full text-left group"
       >
-        <div class="w-full flex justify-between">
-            <span>{{ selectedNode?.name ?? "Sélectionner..." }}</span>
-            <ChevronRight class="h-4 w-4 shrink-0 opacity-50 group-data-[state=open]:rotate-90 mt-1"/>
+        <div class="w-full flex justify-between space-x-2">
+          <div class="w-full flex justify-between">
+						<span>{{ selectedNode?.name ?? "Sélectionner..." }}</span>
+						<button
+							v-if="model"
+							type="button"
+							class="ml-2 text-muted-foreground"
+							@click.stop="model = null"
+						>
+							<XIcon class="size-4" />
+						</button>
+					</div>
+					<ChevronRight class="h-4 w-4 shrink-0 opacity-50 group-data-[state=open]:rotate-90 mt-1"/>
         </div>
       </button>
     </PopoverTrigger>

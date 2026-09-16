@@ -11,7 +11,8 @@ module App
         field :name, String, null: false
         field :port_type_id, ID, null: true
         field :description, String, null: true
-        # field :connection, Physical::Types::Connection, null: true
+        field :mac_address, String, null: true
+        field :connection, Physical::Types::Connection, null: true
       end
     end
   end

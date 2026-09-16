@@ -58,7 +58,7 @@ class LoadDnaDevicesLinkJob < ApplicationJob
     def connect_to_the_api_and_do
       uri = URI.parse('https://10.40.1.104/')
 
-      dna_token = Rails.application.secrets.dna_token
+      dna_token = ENV.fetch("DNA_TOKEN")
 
       path = '/dna/system/api/v1/auth/token'
       headers = {

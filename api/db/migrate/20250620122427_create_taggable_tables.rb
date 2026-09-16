@@ -3,7 +3,7 @@ class CreateTaggableTables < ActiveRecord::Migration[7.1]
     create_table :tags do |t|
       t.string :name
     end
-    create_table :tags_attachments, id: false  do |t|
+    create_table :tags_attachments, id: false do |t|
       t.belongs_to :tag
       t.belongs_to :taggable, polymorphic: true
     end

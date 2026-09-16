@@ -1,4 +1,5 @@
-#import './portType.fragment.gql'
+# import './portType.fragment.gql'
+
 query PortTypes {
   portTypes {
     ...PortTypeFragment

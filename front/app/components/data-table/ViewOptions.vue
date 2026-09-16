@@ -15,15 +15,13 @@
 <template>
   	<DropdownMenu>
 		<DropdownMenuTrigger as-child>
-			<DefaultTooltip text="Toggle des colonnes">
-			<Button
-					variant="outline"
-					size="sm"
-					class="ml-auto hidden h-8 lg:flex"
-				>
-					<Columns3Cog class="h-4 w-4" />
-				</Button>
-			</DefaultTooltip>
+		<Button
+			variant="outline"
+			size="sm"
+			class="ml-auto hidden h-8 lg:flex"
+		>
+			<Columns3Cog class="h-4 w-4" />
+		</Button>
 		</DropdownMenuTrigger>
 		<DropdownMenuContent align="end" class="w-[250px]">
 			<DropdownMenuLabel>Toggle columns</DropdownMenuLabel>

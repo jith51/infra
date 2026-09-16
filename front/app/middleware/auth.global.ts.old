@@ -1,43 +1,78 @@
+const isUnauthorized = (error: any) => {
+  return (
+    error?.statusCode === 401 ||
+    error?.networkError?.statusCode === 401 ||
+    error?.message === '401 Unauthorized'
+  )
+}
+
 export default defineNuxtRouteMiddleware(async (to) => {
-    const CAS_URL = 'https://cas.chu-reims.fr/login?service='
-    const urlOrigine = useRequestURL().origin
+  const config = useRuntimeConfig()
+  const CAS_URL = config.public.casUrl
+  
+  const urlOrigine = encodeURIComponent(useRequestURL().origin + to.path)
 
-    const urlAvecTicket = to.fullPath.match(/ST.+/)
+  const ticket = to.query.ticket
+// const ticket = to.fullPath.match(/ST.+/)
+  // Page publique
+  if (to.path === '/' && !ticket) {
+    return
+  }
+
+  const { checkAuth, userLogIn } = useUserAuth()
+
+  // =============================================================
+  // 1. Retour du CAS : on échange le ticket CAS contre notre JWT
+  // =============================================================
+  if (ticket) {
+    try {
+      await userLogIn({variables: {
+            ticket: String(ticket),
+            service: urlOrigine
+    }})
+      // Le JWT applicatif est maintenant dans authStore
+      // On enlève le ticket de l'URL.
+      return navigateTo(to.path, {
+        replace: true
+      })
+
+    } catch (error) {
+      console.error('CAS login failed', error)
+      return navigateTo('/', {
+        replace: true
+      })
+    }
+  }
+
+  // =========================================================
+  // 2. Pas de ticket : on vérifie notre session applicative
+  // =========================================================
+  try {
+    const user = await checkAuth()
     
-    // Do not run on server
-    // if (process.server || (to.path == '/' && urlAvecTicket == null)) {
-    //     return
-    // }
-
-    // if (urlAvecTicket == null) {
-    //     return
-    // }
-    if (to.path == '/' && urlAvecTicket == null) {
-        return
-    }
-    const { checkAuth, userLogIn} = useUserAuth()
-
-    // ON CHECK SI USER LOGGE
-    let isLogged =  false
-    await checkAuth().then((value: any) => {
-        isLogged = (value != null)
-    }).catch(() => {}) // Mieux gerer l'erreur
-
-    // SI LOGGE ON POURSUIT
-    if (isLogged) {
-        return
+    // JWT valide → on continue
+    if (user) {
+      return
     }
 
-    // SINON : On regarde si on vient de se logger sur le CAS
-    if ( (urlAvecTicket?.length ?? 0) > 0 && urlAvecTicket !== null) {
-        // Si c'est le cas, on se loggue sur l'api et on récupére le tocken de l'appli
-        let IsRegistred = false
-        await userLogIn({ticket: urlAvecTicket[0], service: useRequestURL().origin + to.path }).then((value) => {
-            IsRegistred =  (value != null)
-        }).catch((error: any) => {console.log(error)})  // Mieux gerer l'erreur
-        return await navigateTo(IsRegistred ? to.path : "/", {replace: true })
-    } else {
-        // Si ce n'est pas le cas, on appelle le CAS pour authentification
-        return  await navigateTo(CAS_URL + urlOrigine + to.path, { external: true })
+  } catch (error: any) {
+    if (!isUnauthorized(error)) {
+      // Erreur technique : API inaccessible, 500, timeout...
+      console.error('Check auth failed', error)
+      // return
     }
-});
+  }
+  
+  // =========================================================
+  // 3. Pas authentifié → CAS
+  // =========================================================
+
+  // const service = urlOrigine + to.path
+
+  return navigateTo(
+    `${CAS_URL}/login?service=${urlOrigine}`,
+    {
+      external: true
+    }
+  )
+})

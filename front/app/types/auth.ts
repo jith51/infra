@@ -1,48 +1,21 @@
-export interface ICredentials {
-  access_token: string;
-  client: string;
-  uid: string;
-  expiry: string;
+export type User = {
+    id: string
 }
 
-export interface IUser {
-  credentials: ICredentials
+export type IUser = User & {
+    __typename: string;
 }
 
-export interface GenericResponse {
-  status: string;
-  message: string;
+export type CheckAuthResponse = {
+    checkAuth: {
+        token: string
+        user: IUser
+    }
 }
 
-export interface ILoginInput {
-  email: string;
-  password: string;
+export type LogInResponse = {
+    userCasLogin: {
+        token: string
+        user: IUser
+    }
 }
-
-export interface ISignUpInput {
-  name: string;
-  email: string;
-  password: string;
-  passwordConfirm: string;
-}
-
-export interface ILoginResponse {
-  status: string;
-  access_token: string;
-  client: string;
-  uid: string;
-  expiry: string;
-}
-
-export interface ISignUpResponse {
-  status: string;
-  message: string;
-}
-
-export interface IUserResponse {
-  status: string;
-  data: {
-    user: IUser;
-  };
-}
-

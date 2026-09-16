@@ -12,17 +12,18 @@ fragment ChassisClassFragment on ChassisClassType {
   version
   height
   urlLink
-  frontImage
-  backImage
+  # frontImage
+  # backImage
   customAttributes
   customAttributesDefinition
-  components {
+  allCustomAttributesDefinition
+  componentSlots {
     id
     name
     componentTypeId
     description
   }
-  ports {
+  portSlots {
     id
     name
     portTypeId

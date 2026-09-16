@@ -11,6 +11,9 @@ importers:
       '@apollo/client':
         specifier: ^4.2.3
         version: 4.2.3(graphql-ws@6.0.8(crossws@0.3.5)(graphql@17.0.1)(ws@8.21.0))(graphql@17.0.1)(rxjs@7.8.2)
+      '@formisch/vue':
+        specifier: ^1.1.0
+        version: 1.1.0(typescript@6.0.3)(valibot@1.4.2(typescript@6.0.3))(vue@3.5.39(typescript@6.0.3))
       '@internationalized/date':
         specifier: ^3.12.2
         version: 3.12.2
@@ -494,6 +497,16 @@ packages:
 
   '@floating-ui/vue@1.1.11':
     resolution: {integrity: sha512-HzHKCNVxnGS35r9fCHBc3+uCnjw9IWIlCPL683cGgM9Kgj2BiAl8x1mS7vtvP6F9S/e/q4O6MApwSHj8hNLGfw==}
+
+  '@formisch/vue@1.1.0':
+    resolution: {integrity: sha512-g7KJlrqviu93qzwYiLDP6RcoWEgzb0ZdpfUPp1EdkjOl+QhUWcniXSZPlbtoa9etb8GR3j8rrC60vsEBs7O8hQ==}
+    peerDependencies:
+      typescript: '>=5 <8'
+      valibot: '>=1.4.1 <2'
+      vue: '>=3.3 <4'
+    peerDependenciesMeta:
+      typescript:
+        optional: true
 
   '@graphql-typed-document-node/core@3.2.0':
     resolution: {integrity: sha512-mB9oAsNCm9aM3/SOv4YtBMqZbYj10R7dkq8byBqxGY/ncFwhf2oQzMV+LCRlWoDSEBJ3COiR1yeDvMtsoOsuFQ==}
@@ -4577,6 +4590,13 @@ snapshots:
     transitivePeerDependencies:
       - '@vue/composition-api'
       - vue
+
+  '@formisch/vue@1.1.0(typescript@6.0.3)(valibot@1.4.2(typescript@6.0.3))(vue@3.5.39(typescript@6.0.3))':
+    dependencies:
+      valibot: 1.4.2(typescript@6.0.3)
+      vue: 3.5.39(typescript@6.0.3)
+    optionalDependencies:
+      typescript: 6.0.3
 
   '@graphql-typed-document-node/core@3.2.0(graphql@17.0.1)':
     dependencies:

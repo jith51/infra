@@ -13,25 +13,18 @@ module App
 
         def resolve(**args)
           object = args[:id].blank? ? ::Physical::ChassisClass.new : ::Physical::ChassisClass.find(args[:id])
+
           # On s'occupe des images
           prepare_images(object, args)
+
           # On construie le json à partir du tableau des custom_attributs
           args[:custom_attributes_definition] = args[:custom_attributes_definition].to_h do |custom_attibute|
             [custom_attibute[:name], custom_attibute.to_h.except(:name)]
           end
-          puts 'kljlkjlkj'
-          puts args [:compoents]
-          puts args
-          puts 'kljlkjlkjljljmljmj'
-          Rails.logger.debug args.class
-Rails.logger.debug args[:components]&.first.class
-Rails.logger.debug args.to_h[:components]&.first.class
-          # On construie le component_attributes et on supprime le components --> accpt_nested_attributes_for
-          args = prepare_nested_attributes(object, args, :components, :ports)
 
-          puts 'hjkhmkhhhm'
-          puts args
-          puts 'hjkhmkhhhm'
+          # On construie le component_attributes et on supprime le components --> accpt_nested_attributes_for
+          args = prepare_nested_attributes(object, args, :component_slots_attributes, :port_slots_attributes)
+
           baseResolver(::Physical::ChassisClass, args)
         end
 

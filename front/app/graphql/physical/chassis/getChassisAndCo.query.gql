@@ -11,30 +11,14 @@ query getChassis(
     id
     name
   }
-  # interfaceTypes {
-  #     value
-  #     label
-  # }
-  # linkTypes {
-  #     value
-  #     label
-  # }
   tags {
       id
       name
   }
-  componentTypes {
-      id
-      name
+  availablePorts(
+    chassisNameOrId: $nameOrId
+  ) {
+    id
+    name
   }
-  portTypes {
-      id
-      name
-  }
-  # availablePorts (
-  #   chassisName: $name
-  # ) {
-  #     value
-  #     label
-  # } 
 }

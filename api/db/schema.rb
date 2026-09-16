@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_08_07_132549) do
+ActiveRecord::Schema[8.1].define(version: 2026_08_18_065043) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -288,7 +288,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_07_132549) do
   create_table "physical_chassis", force: :cascade do |t|
     t.bigint "chassis_class_id", null: false
     t.datetime "created_at", null: false
-    t.jsonb "custom_attributes", default: {}
+    t.jsonb "custom_attributes", default: {}, null: false
     t.string "name", null: false
     t.string "serial_number"
     t.datetime "updated_at", null: false
@@ -299,8 +299,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_07_132549) do
   create_table "physical_chassis_classes", force: :cascade do |t|
     t.bigint "chassis_powertype_id"
     t.datetime "created_at", null: false
-    t.jsonb "custom_attributes", default: {}
-    t.jsonb "custom_attributes_definition", default: {}
+    t.jsonb "custom_attributes", default: {}, null: false
+    t.jsonb "custom_attributes_definition", default: {}, null: false
     t.string "fournisseur"
     t.integer "height"
     t.string "model"
@@ -314,28 +314,40 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_07_132549) do
     t.index ["name"], name: "index_physical_chassis_classes_on_name", unique: true
   end
 
+  create_table "physical_component_slots", force: :cascade do |t|
+    t.bigint "chassis_class_id", null: false
+    t.bigint "component_type_id", null: false
+    t.string "description"
+    t.string "name", null: false
+    t.index ["chassis_class_id"], name: "index_physical_component_slots_on_chassis_class_id"
+    t.index ["component_type_id"], name: "index_physical_component_slots_on_component_type_id"
+    t.index ["name"], name: "index_physical_component_slots_on_name"
+  end
+
   create_table "physical_component_types", force: :cascade do |t|
     t.string "name", null: false
     t.index ["name"], name: "index_physical_component_types_on_name"
   end
 
   create_table "physical_components", force: :cascade do |t|
-    t.bigint "component_type_id"
+    t.bigint "chassis_id", null: false
+    t.bigint "component_type_id", null: false
     t.string "description"
-    t.bigint "host_id"
-    t.string "host_type"
     t.string "name", null: false
     t.string "serial_number"
+    t.index ["chassis_id"], name: "index_physical_components_on_chassis_id"
     t.index ["component_type_id"], name: "index_physical_components_on_component_type_id"
-    t.index ["host_type", "host_id"], name: "index_physical_components_on_host"
     t.index ["name"], name: "index_physical_components_on_name"
   end
 
-  create_table "physical_connections", force: :cascade do |t|
-    t.integer "distant_id", null: false
+  create_table "physical_connections", id: false, force: :cascade do |t|
+    t.bigint "distant_port_id", null: false
     t.bigint "link_type_id"
-    t.integer "local_id", null: false
+    t.bigint "local_port_id", null: false
+    t.index ["distant_port_id"], name: "index_physical_connections_on_distant_port_id"
     t.index ["link_type_id"], name: "index_physical_connections_on_link_type_id"
+    t.index ["local_port_id", "distant_port_id"], name: "idx_on_local_port_id_distant_port_id_1461e3b85d", unique: true
+    t.index ["local_port_id"], name: "index_physical_connections_on_local_port_id"
   end
 
   create_table "physical_interface_types", force: :cascade do |t|
@@ -348,19 +360,28 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_07_132549) do
     t.index ["name"], name: "index_physical_link_types_on_name"
   end
 
+  create_table "physical_port_slots", force: :cascade do |t|
+    t.bigint "chassis_class_id", null: false
+    t.string "description"
+    t.string "name", null: false
+    t.bigint "port_type_id", null: false
+    t.index ["chassis_class_id"], name: "index_physical_port_slots_on_chassis_class_id"
+    t.index ["name"], name: "index_physical_port_slots_on_name"
+    t.index ["port_type_id"], name: "index_physical_port_slots_on_port_type_id"
+  end
+
   create_table "physical_port_types", force: :cascade do |t|
     t.string "name", null: false
     t.index ["name"], name: "index_physical_port_types_on_name"
   end
 
   create_table "physical_ports", force: :cascade do |t|
+    t.bigint "chassis_id", null: false
     t.string "description"
-    t.bigint "host_id"
-    t.string "host_type"
     t.string "mac_address"
     t.string "name", null: false
     t.bigint "port_type_id"
-    t.index ["host_type", "host_id"], name: "index_physical_ports_on_host"
+    t.index ["chassis_id"], name: "index_physical_ports_on_chassis_id"
     t.index ["name"], name: "index_physical_ports_on_name"
     t.index ["port_type_id"], name: "index_physical_ports_on_port_type_id"
   end
@@ -375,20 +396,23 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_07_132549) do
   end
 
   create_table "powertype_hierarchies", id: false, force: :cascade do |t|
-    t.integer "ancestor_id", null: false
-    t.integer "descendant_id", null: false
+    t.bigint "ancestor_id", null: false
+    t.bigint "descendant_id", null: false
     t.integer "generations", null: false
     t.index ["ancestor_id", "descendant_id", "generations"], name: "powertype_anc_desc_idx", unique: true
+    t.index ["ancestor_id"], name: "index_powertype_hierarchies_on_ancestor_id"
+    t.index ["descendant_id"], name: "index_powertype_hierarchies_on_descendant_id"
     t.index ["descendant_id"], name: "powertype_desc_idx"
   end
 
   create_table "powertypes", force: :cascade do |t|
     t.datetime "created_at", null: false
-    t.jsonb "custom_attributes", default: {}
+    t.jsonb "custom_attributes_definition", default: {}, null: false
     t.string "name"
     t.integer "parent_id"
     t.string "type"
     t.datetime "updated_at", null: false
+    t.index ["type", "name"], name: "index_powertypes_on_type_and_name", unique: true
   end
 
   create_table "tags", force: :cascade do |t|
@@ -405,4 +429,19 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_07_132549) do
 
   add_foreign_key "active_storage_attachments", "active_storage_blobs", column: "blob_id"
   add_foreign_key "active_storage_variant_records", "active_storage_blobs", column: "blob_id"
+  add_foreign_key "physical_chassis", "physical_chassis_classes", column: "chassis_class_id", on_delete: :restrict
+  add_foreign_key "physical_chassis_classes", "powertypes", column: "chassis_powertype_id", on_delete: :restrict
+  add_foreign_key "physical_component_slots", "physical_chassis_classes", column: "chassis_class_id", on_delete: :cascade
+  add_foreign_key "physical_component_slots", "physical_component_types", column: "component_type_id", on_delete: :restrict
+  add_foreign_key "physical_components", "physical_chassis", column: "chassis_id", on_delete: :cascade
+  add_foreign_key "physical_components", "physical_component_types", column: "component_type_id", on_delete: :restrict
+  add_foreign_key "physical_connections", "physical_link_types", column: "link_type_id", on_delete: :restrict
+  add_foreign_key "physical_connections", "physical_ports", column: "distant_port_id", on_delete: :cascade
+  add_foreign_key "physical_connections", "physical_ports", column: "local_port_id", on_delete: :cascade
+  add_foreign_key "physical_port_slots", "physical_chassis_classes", column: "chassis_class_id", on_delete: :cascade
+  add_foreign_key "physical_port_slots", "physical_port_types", column: "port_type_id", on_delete: :restrict
+  add_foreign_key "physical_ports", "physical_chassis", column: "chassis_id", on_delete: :cascade
+  add_foreign_key "physical_ports", "physical_port_types", column: "port_type_id", on_delete: :restrict
+  add_foreign_key "powertype_hierarchies", "powertypes", column: "ancestor_id", on_delete: :cascade
+  add_foreign_key "powertype_hierarchies", "powertypes", column: "descendant_id", on_delete: :cascade
 end

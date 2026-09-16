@@ -2,5 +2,5 @@ fragment ChassisPowertypeCacheFragment on ChassisPowertypeType {
   id
   name
   parentId
-  customAttributes
+  customAttributesDefinition
 }

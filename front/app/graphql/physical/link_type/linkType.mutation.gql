@@ -1,0 +1,9 @@
+#import './linkType.fragment.gql'
+
+mutation linkTypeMutation(
+  $input: LinkTypeInput!
+) {
+  linkTypeMutation(input: $input) {
+    ...LinkTypeFragment
+  }
+}

@@ -1,0 +1,87 @@
+{
+  "name": "@formisch/vue",
+  "description": "The lightweight, schema-first, and fully type-safe form library for Vue",
+  "version": "1.1.0",
+  "license": "MIT",
+  "author": "Fabian Hiller",
+  "homepage": "https://formisch.dev",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/open-circle/formisch.git"
+  },
+  "keywords": [
+    "vue",
+    "vuejs",
+    "vue-form",
+    "form",
+    "forms",
+    "form-validation",
+    "validation",
+    "schema",
+    "typescript",
+    "type-safe",
+    "signals",
+    "bundle-size",
+    "modular",
+    "valibot"
+  ],
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./internals": {
+      "types": "./dist/internals.d.ts",
+      "import": "./dist/internals.js"
+    }
+  },
+  "sideEffects": false,
+  "files": [
+    "dist"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "build": "tsdown",
+    "test": "vitest run --typecheck",
+    "lint": "eslint \"src/**/*.ts*\" && tsc --noEmit",
+    "lint.fix": "eslint \"src/**/*.ts*\" --fix",
+    "format": "prettier --write ./src",
+    "format.check": "prettier --check ./src",
+    "vite": "vite"
+  },
+  "devDependencies": {
+    "@formisch/core": "workspace:*",
+    "@formisch/eslint-config": "workspace:*",
+    "@formisch/methods": "workspace:*",
+    "@testing-library/jest-dom": "^6.6.0",
+    "@types/node": "^24.1.0",
+    "@vitest/coverage-v8": "^4.1.7",
+    "@vue/eslint-config-typescript": "^14.6.0",
+    "@vue/test-utils": "^2.4.6",
+    "eslint": "^9.32.0",
+    "eslint-plugin-vue": "~10.3.0",
+    "jsdom": "^26.1.0",
+    "tsdown": "^0.16.8",
+    "typescript": "~5.8.3",
+    "unplugin-vue": "^7.0.0",
+    "valibot": "^1.4.1",
+    "vitest": "^4.1.7",
+    "vue": "^3.5.18",
+    "vue-tsc": "^3.0.4"
+  },
+  "peerDependencies": {
+    "typescript": ">=5 <8",
+    "valibot": ">=1.4.1 <2",
+    "vue": ">=3.3 <4"
+  },
+  "peerDependenciesMeta": {
+    "typescript": {
+      "optional": true
+    }
+  }
+}

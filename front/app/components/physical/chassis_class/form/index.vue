@@ -25,23 +25,7 @@
                         </FieldSet>
                         <!-- Custom Attribute -->
                         <FieldSet class="mb-4 border-l border-grey-200 pl-3">
-                            <template v-for="customAttributesField in customAttributesFields">
-                                <DynamicField
-                                    :form 
-                                    :type="customAttributesField.type"
-                                    :name="`customAttributes.${customAttributesField!.name}`"
-                                    :label="customAttributesField!.label"
-                                    :validators="{
-                                        onChange: ({ value } : {value: string}) => {
-                                            const result = validateField(customAttributesField.type, value)
-                                            if (!result.success) {
-                                                return result.issues[0].message
-                                            }
-                                            return undefined
-                                        }
-                                    }"
-                                />
-                            </template>
+                            <CustomAttributesField :form :customAttributesDefinition="customAttributesFields ?? []" />
                         </FieldSet>
                     </FieldGroup>
                     <FieldGroup>
@@ -63,11 +47,11 @@
                         </FieldSet>
                         <!-- Components definition -->
                          <FieldSet class="mb-4 border-l border-grey-200 pl-3">
-                            <ComponentsField :form name="components"/>
+                            <ComponentSlotsField :form name="componentSlots"/>
                         </FieldSet>
                         <!-- Ports definition -->
                          <FieldSet class="mb-4 border-l border-grey-200 pl-3">
-                            <PortsField :form name="ports"/>
+                            <PortSlotsField :form name="portSlots"/>
                         </FieldSet>
                     </FieldGroup>
                 </div>
@@ -77,7 +61,7 @@
                             <Button type="submit" form="physical_chassis_class_form" :disabled="!canSubmit">
                                 {{ isSubmitting ? '...' : 'Submit' }}
                             </Button>
-                            <Button variant="outline" @click="navigateTo('/physical/chassis_classes/edit/')">
+                            <Button variant="outline" @click.prevent="navigateTo('/physical/chassis_classes/edit/')">
                                 New
                             </Button>
                         </div>
@@ -97,16 +81,16 @@
     import type { CustomAttributeDefinitionType } from '@/types/physical/custom_attribute_definition'
     
     // Composants
-    import ComponentsField from '@/components/physical/component/componentsField.vue'
-    import PortsField from '@/components/physical/component/portsField.vue'
-    import CustomAttributesDefinitionField from '@/components/physical/custom_attributes/CustomAttributesDefinitionField.vue'
-    
+    import ComponentSlotsField from '@/components/physical/component/ComponentSlotsField.vue'
+    import PortSlotsField from '@/components/physical/component/PortSlotsField.vue'
+    import CustomAttributesDefinitionField from '@/components/physical/component/CustomAttributesDefinitionField.vue'
+    import CustomAttributesField from '@/components/physical/component/CustomAttributesField.vue'
+
     // Schema valibot
     import { chassisClassFormSchema } from '@/types/physical/chassis_class'
 
     // Validation Form
     import { useForm } from '@tanstack/vue-form'
-    import { validateField } from '@/types/field'
     
     // Toast
     import { toast } from 'vue-sonner'
@@ -120,16 +104,24 @@
     // Emits : Annulation et validation
     const emit = defineEmits<{
         (e: 'cancel'): void
-        (e: 'chassisUpdated', chassisClass: ChassisClassType): void
+        (e: 'chassisClassUpdated', chassisClass: ChassisClassType): void
     }>()
 
     // Construction de l'arbre des chassisPowertypes
     import { useTree } from '@/components/tree/tree_node'
     const { tree: chassisPowertypesTree, getAncestors, getNode } = useTree(props.chassisPowertypes)    
 
+    const initialValue = computed(()=> {
+        if(!props.chassisClass) {
+            return {}
+        }
+        
+        const { allCustomAttributesDefinition, ...result } = props.chassisClass
+        return result
+    })
     // Définition de la form
     const form = useForm({
-        defaultValues: props.chassisClass,
+        defaultValues: initialValue.value,
         validators: {
             onSubmit: chassisClassFormSchema,
             onChange: chassisClassFormSchema,
@@ -139,7 +131,11 @@
             muteChassisClass(value)
         },
     })
-
+    // Lorsque l'initialValue change on met à jour la form
+    watch(initialValue,
+        (value) => { form.reset(value) },
+        { deep: true }
+    )
     // Définition des fields de la form
     import type { FieldType } from "@/types/field"
 
@@ -164,7 +160,7 @@
             customAttributesFields.value = []
             return
         }
-        customAttributesFields.value = <CustomAttributeDefinitionType[]>[getNode(chassisPowertypeId), ...getAncestors(chassisPowertypeId)].map(cp => cp?.customAttributes).flat()
+        customAttributesFields.value = <CustomAttributeDefinitionType[]>[getNode(chassisPowertypeId), ...getAncestors(chassisPowertypeId)].map(cp => cp?.customAttributesDefinition).flat()
     }
     
     // Mutation de la forme
@@ -173,7 +169,7 @@
     const { muteChassisClass, onMutationError, onMutationDone } = useChassisClassGraphQl()
     
     onMutationDone ((value) => {
-         emit('chassisUpdated', value!.data!.chassisClass)
+         emit('chassisClassUpdated', value!.data!.chassisClass)
         toast('Chassis Class enregistré.')
     })
 

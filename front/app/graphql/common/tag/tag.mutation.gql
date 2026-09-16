@@ -1,0 +1,9 @@
+#import './tag.fragment.gql'
+
+mutation tag(
+  $input: TagInput!
+) {
+  tag(input: $input) {
+    ...TagFragment
+  }
+}

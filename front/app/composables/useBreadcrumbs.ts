@@ -21,7 +21,7 @@ export const useBreadcrumbs = (): Ref<NamedPath[]> => {
     const route = useRoute()
     const routes = router.getRoutes()
 
-    const HOMEPAGE = { name: 'Infra Explorer', path: '/' }
+    const HOMEPAGE = { name: 'Home', path: '/' }
     
     const breadcrumbs = ref<NamedPath[]>([ HOMEPAGE ])
 

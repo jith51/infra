@@ -2,11 +2,12 @@
     <BaseField :form :label :type #default="{ inputProps }">
         <CommandSelect
             :options
+            :withDeleteOption
             v-bind="usePick(inputProps, ['modelValue', 'onUpdate:model-value'])"
             @add-option="addOption"
             @remove-option="removeOption"
             @option-selected="optionSelected"
-        />            
+        />
     </BaseField>
 </template>
 
@@ -15,6 +16,9 @@
 // Tous les props et emits passer lors de l'appel de InputField sont passer à FormField
 import type { FormApi } from "@tanstack/vue-form"
 import type { FieldType } from "@/types/field"
+
+import { CommandSelect } from '@/components/my-ui'
+
 // Types
 type Option = {
     id: string
@@ -25,11 +29,13 @@ withDefaults(
     defineProps<{
         form: FormApi<T>
         options: Option[]
+        withDeleteOption?: boolean
         label?: string
         type?: FieldType
 }>(), {
     options: () => [],
-    type: 'text'
+    type: 'text',
+    withDeleteOption: true
 })
 // Emit : demande d'ajout et de suppression d'une option
 const emit = defineEmits<{
@@ -45,7 +51,7 @@ function removeOption (value: string) {
     emit('removeOption', value)
 }
 
-function optionSelected (id: string | null | undefined) {
+function optionSelected(id: string | null | undefined) {
     emit('optionSelected', id)
 }
 

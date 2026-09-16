@@ -1,0 +1,8 @@
+query checkAuth {
+  checkAuth {
+    user {
+      id
+    }
+    token
+  }
+}

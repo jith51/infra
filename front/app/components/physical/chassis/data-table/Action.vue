@@ -1,17 +1,25 @@
 <template>
     <div class=" flex gap-2">
-      <Button  @click="navigateTo(`/physical/chassis/edit/${props.chassis_name}`)">
-        <View/>
+      <Button 
+        variant="outline"
+        size="sm"
+        @click="navigateTo(`/physical/chassis/edit/${chassis_name}`)"
+			>
+        <Pencil/>
       </Button>
-      <Button @click="deleteObject(props.chassis_id)">
-        <Eraser/>
+      <Button
+        variant="outline"
+        size="sm"
+        @click="deleteObject(chassis_id)"
+      >
+        <Trash2Icon/>
       </Button>
     </div>
 </template>
 
 <script setup lang="ts">
 // Icones
-import { View, Eraser } from '@lucide/vue'
+import { Pencil, Trash2Icon } from '@lucide/vue'
 
 // Alerte
 import { toast } from 'vue-sonner'

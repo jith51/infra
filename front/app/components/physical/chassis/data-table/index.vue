@@ -8,9 +8,9 @@
 		<!-- Lien vers creation -->
 		<CreateLink/>
 		<!-- Upload File -->
-		<!-- <Upload/> -->
+		<Upload/>
 		<!-- Download File -->
-		<!-- <Download /> -->
+		<Download :chassis-classes="(filterTablesResult?.chassisClasses as OptionType[]) ?? []"/>
 		<!-- Selection des colonnes -->
 		<DataTableViewOptions :table="table" />
 	</template>
@@ -26,16 +26,19 @@
 
 <script setup lang="ts">
   	// Composants
-	// import Download from './toolbar/Download.vue'
+	import Download from './toolbar/Download.vue'
 	import CreateLink from './toolbar/CreateLink.vue'
 	import Filter from './toolbar/Filter.vue'
-	// import Upload from './toolbar/Upload.vue'
+	import Upload from './toolbar/Upload.vue'
 
 	import type { ChassisType, ChassisFilterTablesType } from '@/types/physical/chassis'
+	import type { OptionType } from '@/types/base'
 
 	// API CALLs
 	// On va rechercher les Chassis et les tables de filtres
-	const { queryAllResult: chassis, noMoreData, filter, loadMore, loadFilterTables, filterTablesResult } = useChassisGraphQl()
+	const { useDataTableQuery, loadFilterTables, filterTablesResult } = useChassisGraphQl()
+	const { queryAllResult: chassis, noMoreData, filter, loadMore } = useDataTableQuery()
+	
 	await loadFilterTables()
     
 	// Déclaration de la table

@@ -1,5 +1,5 @@
 <template>
-    <div  class="w-full h-full flex flex-col gap-4 [&>div]:data-[slot=table-container]:max-h-full [&>div]:data-[slot=table-container]:border [&>div]:data-[slot=table-container]:rounded-md">
+    <div  class="w-full h-full flex flex-col gap-4">
         <!-- TOOLBAR -->
         <div class="flex items-center justify-between ps-1 pt-2">
             <div class="flex flex-1 items-center space-x-2">
@@ -9,14 +9,14 @@
                 <slot name="toolbar-options"/>
             </div>
         </div>
-        <div ref="el" class="relative w-full overflow-auto max-h-full border rounded-md">
+        <div id="e" ref="el" class="relative w-full overflow-auto max-h-full border rounded-md [&>div]:data-[slot=table-container]:max-h-full">
             <!-- TABLE -->
-            <table class="w-full caption-bottom text-sm">
+            <Table class="w-full caption-bottom text-sm">
                 <!-- HEADER -->
                 <TableHeader class="sticky top-0 bg-white z-10 [&_th]:after:border-b [&_th]:last:w-8">
                     <TableRow v-for="headerGroup in table.getHeaderGroups()" :key="headerGroup.id">
                         <TableHead v-for="header in headerGroup.headers" :key="header.id">
-                        <FlexRender v-if="!header.isPlaceholder" :render="header.column.columnDef.header" :props="header.getContext()"/>
+                            <FlexRender v-if="!header.isPlaceholder" :render="header.column.columnDef.header" :props="header.getContext()"/>
                         </TableHead>
                     </TableRow>
                 </TableHeader>
@@ -33,7 +33,7 @@
                         </TableCell>
                     </TableRow>
                 </TableBody>
-            </table>
+            </Table>
         </div>
     </div>
 </template>

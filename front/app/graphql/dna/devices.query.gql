@@ -2,8 +2,8 @@
 #import './fragment/switch.fragment.gql'
 
 query devices(
-  $_limit: Int
-  $_page: Int
+  $limit: Int
+  $page: Int
   $hostname: String
   $deviceFamilyIds: [Int!]
   $devicePlatformIdIds: [Int!]
@@ -13,8 +13,8 @@ query devices(
   $deviceRoleIds: [Int!]
 ) {
   devices(
-    _limit: $_limit
-    _page: $_page
+    limit: $limit
+    page: $page
     hostname: $hostname
     deviceFamilyIds: $deviceFamilyIds
     devicePlatformIdIds: $devicePlatformIdIds

@@ -5,239 +5,165 @@ import {
   type HexPosition,
 } from './hexagon'
 
-import {
-  createTile,
-  getTileHexagonPosition,
+import  {
+    createTile,
   type Tile,
+  type TileHexagonData,
 } from './tile'
 
-import {
-  findTilePlacement,
-} from './placement'
-
 /**
  * ============================================================
- * TYPES
+ * HEXAGONE DU BOARD
  * ============================================================
  */
 
-/**
- * Identifiants des trois tuiles utilisées
- * lors de la création initiale du plateau.
- */
-export interface StartingTiles {
-  tip: string
-  left: string
-  right: string
-}
-
-/**
- * Représentation d'un hexagone lorsqu'il est
- * enregistré sur le plateau global.
- */
 export interface BoardHexagon
-  extends HexPosition {
+  extends TileHexagonData {
+
+  /**
+   * Position globale de l'hexagone
+   * dans le Board.
+   */
+  position: HexPosition
+
+  /**
+   * Tuile d'origine.
+   */
   tileId: string
-  tileHexagonIndex: number
-  terrain: string
-  site: string | null
-  enemy: string | null
-  units: string[]
 }
 
 /**
- * Plateau de jeu.
+ * ============================================================
+ * TUILE PLACEE
+ * ============================================================
+ *
+ * Le Board conserve également la définition de la tuile
+ * ainsi que l'endroit où son centre a été placé.
  */
-export interface Board {
-  /**
-   * Tuiles actuellement présentes sur le plateau.
-   */
-  tiles: Map<string, Tile>
+export interface PlacedTile {
+  tile: Tile
 
   /**
-   * Tous les hexagones occupés par les tuiles.
+   * Position du centre de la tuile.
+   */
+  position: HexPosition
+}
+
+/**
+ * ============================================================
+ * BOARD
+ * ============================================================
+ */
+
+export interface Board {
+
+  /**
+   * Tuiles effectivement placées.
+   */
+  tiles: Map<string, PlacedTile>
+
+  /**
+   * Tous les hexagones du plateau.
    *
    * La clé est :
    *
    * q:r
    */
   hexagons: Map<string, BoardHexagon>
-  
+
   /**
-   * Les trois tuiles utilisées pour
-   * initialiser le plateau.
+   * Identifiant de la tuile de départ.
    */
-  startingTiles: StartingTiles
+  startingTileId: string
 }
 
 /**
  * ============================================================
- * CREATION DU BOARD
+ * POSITION D'UN HEXAGONE
  * ============================================================
  */
 
 /**
- * Crée un plateau vide.
+ * Calcule la position globale d'un hexagone
+ * à partir du centre de sa tuile.
  */
-export function createBoard(
-  startingTiles: StartingTiles,
-): Board {
-  return {
-    tiles: new Map<string, Tile>(),
-
-    hexagons:
-      new Map<string, BoardHexagon>(),
-
-    startingTiles,
-  }
-}
-
-/**
- * ============================================================
- * TILES
- * ============================================================
- */
-
-/**
- * Retourne toutes les tuiles présentes
- * sur le plateau.
- */
-export function getTiles(
-  board: Board,
-): Tile[] {
-  return Array.from(
-    board.tiles.values(),
-  )
-}
-
-/**
- * Retourne une tuile à partir de son ID.
- */
-export function getTile(
-  board: Board,
-  tileId: string,
-): Tile | null {
-  return (
-    board.tiles.get(
-      tileId,
-    ) ?? null
-  )
-}
-
-/**
- * ============================================================
- * HEXAGONES
- * ============================================================
- */
-
-/**
- * Retourne un hexagone global à partir
- * de ses coordonnées axiales.
- */
-export function getHexagon(
-  board: Board,
-  q: number,
-  r: number,
-): BoardHexagon | null {
-  return (
-    board.hexagons.get(
-      hexagonKey(q, r),
-    ) ?? null
-  )
-}
-
-/**
- * Vérifie si un hexagone existe déjà
- * à une position donnée.
- */
-export function hasHexagon(
-  board: Board,
-  q: number,
-  r: number,
-): boolean {
-  return board.hexagons.has(
-    hexagonKey(q, r),
-  )
-}
-
-/**
- * ============================================================
- * COLLISIONS
- * ============================================================
- */
-
-/**
- * Vérifie si une tuile entre en collision
- * avec une tuile déjà présente sur le plateau.
- */
-export function hasTileCollision(
-  board: Board,
+export function getBoardHexagonPosition(
   tile: Tile,
-): boolean {
-  for (
-    const hexagon of tile.hexagons
-  ) {
-    const position =
-      getTileHexagonPosition(
-        tile,
-        hexagon,
-      )
+  position: HexPosition,
+  hexagon: TileHexagonData,
+): HexPosition {
+  return {
+    q:
+      position.q +
+      hexagon.localQ,
 
-    if (
-      hasHexagon(
-        board,
-        position.q,
-        position.r,
-      )
-    ) {
-      return true
-    }
+    r:
+      position.r +
+      hexagon.localR,
   }
-
-  return false
 }
 
 /**
  * ============================================================
- * AJOUT / SUPPRESSION DE TUILES
+ * AJOUT D'UNE TUILE
  * ============================================================
  */
 
 /**
- * Ajoute une tuile au plateau.
+ * Ajoute une tuile au Board.
  *
- * La fonction vérifie :
+ * La tuile reste une définition statique.
  *
- * - que l'ID n'existe pas déjà
- * - que la tuile ne chevauche pas une tuile existante
+ * Le Board recopie ses 7 hexagones avec
+ * leurs coordonnées globales.
  */
 export function addTile(
   board: Board,
   tile: Tile,
+  position: HexPosition,
 ): void {
+
   /**
-   * Une tuile avec le même ID existe déjà.
+   * Une même définition de tuile ne peut
+   * pas être ajoutée deux fois avec le même id.
    */
   if (
-    board.tiles.has(tile.id)
+    board.tiles.has(
+      tile.id,
+    )
   ) {
     throw new Error(
-      `La tuile "${tile.id}" existe déjà.`,
+      `La tuile "${tile.id}" existe déjà sur le plateau.`,
     )
   }
 
   /**
-   * Collision géométrique.
+   * Vérification des collisions.
    */
-  if (
-    hasTileCollision(
-      board,
-      tile,
-    )
+  for (
+    const hexagon of tile.hexagons
   ) {
-    throw new Error(
-      `La tuile "${tile.id}" chevauche une tuile existante.`,
-    )
+
+    const globalPosition =
+      getBoardHexagonPosition(
+        tile,
+        position,
+        hexagon,
+      )
+
+    const key =
+      hexagonKey(
+        globalPosition.q,
+        globalPosition.r,
+      )
+
+    if (
+      board.hexagons.has(key)
+    ) {
+      throw new Error(
+        `L'hexagone ${key} est déjà occupé.`,
+      )
+    }
   }
 
   /**
@@ -245,477 +171,197 @@ export function addTile(
    */
   board.tiles.set(
     tile.id,
-    tile,
-  )
-
-  /**
-   * Enregistre chacun de ses hexagones
-   * dans l'index global.
-   */
-  for (
-    const hexagon of tile.hexagons
-  ) {
-    const position =
-      getTileHexagonPosition(
-        tile,
-        hexagon,
-      )
-
-    const key =
-      hexagonKey(
-        position.q,
-        position.r,
-      )
-
-    board.hexagons.set(
-      key,
-      {
-        q: position.q,
-
-        r: position.r,
-
-        tileId:
-          tile.id,
-
-        tileHexagonIndex:
-          hexagon.index,
-
-        terrain:
-          hexagon.terrain,
-
-        site:
-          hexagon.site,
-
-        enemy:
-          hexagon.enemy,
-
-        units: [
-          ...hexagon.units,
-        ],
-      },
-    )
-  }
-}
-
-/**
- * Supprime une tuile du plateau.
- */
-export function removeTile(
-  board: Board,
-  tileId: string,
-): boolean {
-  const tile =
-    board.tiles.get(
-      tileId,
-    )
-
-  if (!tile) {
-    return false
-  }
-
-  /**
-   * Supprime ses hexagones
-   * de l'index global.
-   */
-  for (
-    const hexagon of tile.hexagons
-  ) {
-    const position =
-      getTileHexagonPosition(
-        tile,
-        hexagon,
-      )
-
-    board.hexagons.delete(
-      hexagonKey(
-        position.q,
-        position.r,
-      ),
-    )
-  }
-
-  /**
-   * Supprime la tuile.
-   */
-  board.tiles.delete(
-    tileId,
-  )
-
-  return true
-}
-
-/**
- * ============================================================
- * TUILES DE DEPART
- * ============================================================
- */
-
-/**
- * Retourne les trois tuiles de départ.
- */
-export function getStartingTiles(
-  board: Board,
-): {
-  tip: Tile
-  left: Tile
-  right: Tile
-} {
-  const tip =
-    getTile(
-      board,
-      board.startingTiles.tip,
-    )
-
-  const left =
-    getTile(
-      board,
-      board.startingTiles.left,
-    )
-
-  const right =
-    getTile(
-      board,
-      board.startingTiles.right,
-    )
-
-  if (!tip) {
-    throw new Error(
-      `La tuile "${board.startingTiles.tip}" est introuvable.`,
-    )
-  }
-
-  if (!left) {
-    throw new Error(
-      `La tuile "${board.startingTiles.left}" est introuvable.`,
-    )
-  }
-
-  if (!right) {
-    throw new Error(
-      `La tuile "${board.startingTiles.right}" est introuvable.`,
-    )
-  }
-
-  return {
-    tip,
-    left,
-    right,
-  }
-}
-
-/**
- * ============================================================
- * INITIAL BOARD
- * ============================================================
- */
-
-/**
- * Crée le plateau initial de Mage Knight.
- *
- * Configuration :
- *
- *
- *                    TIP
- *
- *
- *                3       4
- *                 \     /
- *                  \   /
- *                LEFT RIGHT
- *                  1     1
- *
- *
- * Contraintes :
- *
- * LEFT[1] touche TIP[3] et TIP[4]
- *
- * RIGHT[1] touche TIP[4] et TIP[5]
- *
- *
- * Le moteur de placement cherche automatiquement :
- *
- * - la position q/r
- * - la rotation
- *
- * et vérifie les collisions.
- */
-export function createInitialBoard(): Board {
-  /**
-   * ==========================================================
-   * IDENTIFIANTS
-   * ==========================================================
-   */
-
-  const startingTiles: StartingTiles = {
-    tip: 'starting-tip',
-
-    left: 'starting-left',
-
-    right: 'starting-right',
-  }
-
-  /**
-   * ==========================================================
-   * BOARD VIDE
-   * ==========================================================
-   */
-
-  const board =
-    createBoard(
-      startingTiles,
-    )
-
-  /**
-   * ==========================================================
-   * TIP
-   * ==========================================================
-   *
-   * La tuile TIP est toujours au centre.
-   */
-
-  const tip =
-    createTile({
-      id:
-        startingTiles.tip,
-
-      position: {
-        q: 0,
-        r: 0,
-      },
-
-      rotation: 0,
-    })
-
-  addTile(
-    board,
-    tip,
-  )
-
-  /**
-   * ==========================================================
-   * LEFT
-   * ==========================================================
-   *
-   * LEFT[1] doit toucher :
-   *
-   * TIP[3]
-   * TIP[4]
-   */
-
-  const left =
-    createTile({
-      id:
-        startingTiles.left,
-
-      /**
-       * Position temporaire.
-       *
-       * Le moteur de placement va la remplacer.
-       */
-      position: {
-        q: 0,
-        r: 0,
-      },
-
-      rotation: 0,
-    })
-
-  const leftPlacement =
-    findTilePlacement(
-      board,
-      {
-        tile: left,
-
-        contacts: [
-          /**
-           * LEFT[1] → TIP[3]
-           */
-          {
-            tileId:
-              left.id,
-
-            hexagonIndex:
-              1,
-
-            otherTileId:
-              tip.id,
-
-            otherHexagonIndex:
-              3,
-          },
-
-          /**
-           * LEFT[1] → TIP[4]
-           */
-          {
-            tileId:
-              left.id,
-
-            hexagonIndex:
-              1,
-
-            otherTileId:
-              tip.id,
-
-            otherHexagonIndex:
-              4,
-          },
-        ],
-      },
-    )
-
-  if (!leftPlacement) {
-    throw new Error(
-      'Aucun placement valide trouvé pour la tuile LEFT.',
-    )
-  }
-
-  /**
-   * Applique le placement trouvé.
-   */
-  left.position =
-    leftPlacement.position
-
-  left.rotation =
-    leftPlacement.rotation
-
-  /**
-   * Ajoute LEFT au plateau.
-   */
-  addTile(
-    board,
-    left,
-  )
-
-  /**
-   * ==========================================================
-   * RIGHT
-   * ==========================================================
-   *
-   * RIGHT[1] doit toucher :
-   *
-   * TIP[4]
-   * TIP[5]
-   *
-   * Le moteur tient maintenant compte des tuiles
-   * déjà présentes, donc LEFT est pris en compte
-   * lors de la recherche.
-   */
-
-  const right =
-    createTile({
-      id:
-        startingTiles.right,
-
-      position: {
-        q: 0,
-        r: 0,
-      },
-
-      rotation: 0,
-    })
-
-  const rightPlacement =
-    findTilePlacement(
-      board,
-      {
-        tile: right,
-
-        contacts: [
-          /**
-           * RIGHT[1] → TIP[4]
-           */
-          {
-            tileId:
-              right.id,
-
-            hexagonIndex:
-              1,
-
-            otherTileId:
-              tip.id,
-
-            otherHexagonIndex:
-              4,
-          },
-
-          /**
-           * RIGHT[1] → TIP[5]
-           */
-          {
-            tileId:
-              right.id,
-
-            hexagonIndex:
-              1,
-
-            otherTileId:
-              tip.id,
-
-            otherHexagonIndex:
-              5,
-          },
-        ],
-      },
-    )
-
-  if (!rightPlacement) {
-    throw new Error(
-      'Aucun placement valide trouvé pour la tuile RIGHT.',
-    )
-  }
-
-  /**
-   * Applique le placement trouvé.
-   */
-  right.position =
-    rightPlacement.position
-
-  right.rotation =
-    rightPlacement.rotation
-
-  /**
-   * Ajoute RIGHT au plateau.
-   */
-  addTile(
-    board,
-    right,
-  )
-
-  /**
-   * ==========================================================
-   * DEBUG
-   * ==========================================================
-   */
-
-  console.log(
-    '[BOARD] Starting tiles:',
     {
-      tip: {
-        position:
-          tip.position,
+      tile,
 
-        rotation:
-          tip.rotation,
-      },
-
-      left: {
-        position:
-          left.position,
-
-        rotation:
-          left.rotation,
-      },
-
-      right: {
-        position:
-          right.position,
-
-        rotation:
-          right.rotation,
+      position: {
+        q: position.q,
+        r: position.r,
       },
     },
   )
 
+  /**
+   * Recopie les 7 hexagones
+   * dans le Board.
+   */
+  for (
+    const hexagon of tile.hexagons
+  ) {
+
+    const globalPosition =
+      getBoardHexagonPosition(
+        tile,
+        position,
+        hexagon,
+      )
+
+    const boardHexagon:
+      BoardHexagon = {
+      ...hexagon,
+
+      position:
+        globalPosition,
+
+      tileId:
+        tile.id,
+    }
+
+    board.hexagons.set(
+      hexagonKey(
+        globalPosition.q,
+        globalPosition.r,
+      ),
+      boardHexagon,
+    )
+  }
+}
+
+/**
+ * ============================================================
+ * BOARD INITIAL
+ * ============================================================
+ */
+
+export function createInitialBoard(): Board {
+
+  const board: Board = {
+
+    tiles:
+      new Map(),
+
+    hexagons:
+      new Map(),
+
+    startingTileId:
+      'starting',
+  }
+
+  /**
+   * ==========================================================
+   * TUILE DE DEPART
+   * ==========================================================
+   */
+    const startingTile = createTile({
+    id: 'starting',
+
+    level: 1,
+    })
+//   const startingTile: Tile = {
+//     id: 'starting',
+
+//     level: 1,
+
+//     hexagons: [
+//       {
+//         index: 0,
+//         localQ: 0,
+//         localR: 0,
+//         terrain: 'plains',
+//         site: null,
+//         enemy: null,
+//         units: [],
+//       },
+
+//       {
+//         index: 1,
+//         localQ: -1,
+//         localR: 0,
+//         terrain: 'plains',
+//         site: null,
+//         enemy: null,
+//         units: [],
+//       },
+
+//       {
+//         index: 2,
+//         localQ: 0,
+//         localR: -1,
+//         terrain: 'plains',
+//         site: null,
+//         enemy: null,
+//         units: [],
+//       },
+
+//       {
+//         index: 3,
+//         localQ: 1,
+//         localR: -1,
+//         terrain: 'plains',
+//         site: null,
+//         enemy: null,
+//         units: [],
+//       },
+
+//       {
+//         index: 4,
+//         localQ: 1,
+//         localR: 0,
+//         terrain: 'plains',
+//         site: null,
+//         enemy: null,
+//         units: [],
+//       },
+
+//       {
+//         index: 5,
+//         localQ: 0,
+//         localR: 1,
+//         terrain: 'plains',
+//         site: null,
+//         enemy: null,
+//         units: [],
+//       },
+
+//       {
+//         index: 6,
+//         localQ: -1,
+//         localR: 1,
+//         terrain: 'plains',
+//         site: null,
+//         enemy: null,
+//         units: [],
+//       },
+//     ],
+//   }
+
+  /**
+   * Centre de la tuile de départ.
+   */
+  addTile(
+    board,
+    startingTile,
+    {
+      q: 0,
+      r: 0,
+    },
+  )
+
   return board
+}
+
+/**
+ * ============================================================
+ * HELPERS
+ * ============================================================
+ */
+
+export function getTiles(
+  board: Board,
+): PlacedTile[] {
+  return Array.from(
+    board.tiles.values(),
+  )
+}
+
+export function getBoardHexagon(
+  board: Board,
+  position: HexPosition,
+): BoardHexagon | undefined {
+  return board.hexagons.get(
+    hexagonKey(
+      position.q,
+      position.r,
+    ),
+  )
 }

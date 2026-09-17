@@ -6,163 +6,127 @@ import {
   type Terrain,
 } from './hexagon'
 
+/**
+ * ============================================================
+ * POSITION D'UNE TUILE
+ * ============================================================
+ *
+ * La position n'appartient pas à la définition
+ * statique d'une tuile.
+ *
+ * Elle sera définie par le Board lorsqu'on
+ * place la tuile.
+ */
 export interface TilePosition {
   q: number
   r: number
 }
 
-enum TileLevel {
-  First = 1,
-  Second = 2,
-  Third = 3
-}
+/**
+ * ============================================================
+ * NIVEAU D'UNE TUILE
+ * ============================================================
+ */
+
+export type TileLevel = 1 | 2 | 3
+
+/**
+ * ============================================================
+ * HEXAGONE D'UNE TUILE
+ * ============================================================
+ */
 
 export interface TileHexagonData {
+  /**
+   * Index de l'hexagone dans la tuile.
+   *
+   * 0 = centre
+   */
   index: number
 
+  /**
+   * Coordonnées locales par rapport
+   * au centre de la tuile.
+   */
   localQ: number
   localR: number
 
-  level: TileLevel | null
-
+  /**
+   * Terrain de l'hexagone.
+   */
   terrain: Terrain
 
+  /**
+   * Site éventuellement présent.
+   */
   site: string | null
 
+  /**
+   * Ennemi éventuellement présent.
+   */
   enemy: string | null
 
+  /**
+   * Unités éventuellement présentes.
+   */
   units: string[]
 }
 
+/**
+ * ============================================================
+ * TUILE
+ * ============================================================
+ *
+ * Une Tile est une définition statique d'une
+ * tuile du jeu.
+ *
+ * Elle ne connaît pas sa position sur le Board.
+ */
 export interface Tile {
   id: string
 
   /**
-   * Position du centre de la tuile.
+   * Niveau de la tuile.
    */
-  position: TilePosition
+  level: TileLevel
 
   /**
-   * Rotation de 0 à 5.
-   *
-   * Chaque unité correspond à 60°.
+   * Les 7 hexagones composant la tuile.
    */
-  rotation: number
-
   hexagons: TileHexagonData[]
 }
+
+/**
+ * ============================================================
+ * CREATION
+ * ============================================================
+ */
 
 export interface CreateTileOptions {
   id: string
 
-  position?: TilePosition
-
-  rotation?: number
-
-  level?: TileLevel
+  level: TileLevel
 
   terrains?: Terrain[]
+
+  sites?: (string | null)[]
+
+  enemies?: (string | null)[]
+
+  units?: string[][]
 }
 
 /**
- * Normalise une rotation.
- */
-export function normalizeRotation(
-  rotation: number,
-): number {
-  return (
-    (
-      rotation % 6
-    ) +
-    6
-  ) % 6
-}
-
-/**
- * Rotation d'une coordonnée axiale.
- *
- * Une rotation correspond à 60°.
- *
- * Formule cube :
- *
- * x = q
- * z = r
- * y = -x-z
- */
-export function rotateHex(
-  q: number,
-  r: number,
-  rotation: number,
-): TilePosition {
-  const normalized =
-    normalizeRotation(rotation)
-
-  let x = q
-  let z = r
-  let y = -x - z
-
-  for (
-    let i = 0;
-    i < normalized;
-    i++
-  ) {
-    /**
-     * Rotation de 60° :
-     *
-     * (x, y, z)
-     * →
-     * (-z, -x, -y)
-     */
-    const newX = -z
-    const newY = -x
-    const newZ = -y
-
-    x = newX
-    y = newY
-    z = newZ
-  }
-
-  return {
-    q: x,
-    r: z,
-  }
-}
-
-/**
- * Retourne les coordonnées globales
- * d'un hexagone d'une tuile.
- */
-export function getTileHexagonPosition(
-  tile: Tile,
-  hexagon: TileHexagonData,
-): TilePosition {
-  const rotated =
-    rotateHex(
-      hexagon.localQ,
-      hexagon.localR,
-      tile.rotation,
-    )
-
-  return {
-    q:
-      tile.position.q +
-      rotated.q,
-
-    r:
-      tile.position.r +
-      rotated.r,
-  }
-}
-
-/**
- * Crée un hexagone de tuile.
+ * Crée un hexagone appartenant à une tuile.
  */
 function createTileHexagon(
   index: number,
   q: number,
   r: number,
   terrain: Terrain,
-  level?: TileLevel
+  site: string | null,
+  enemy: string | null,
+  units: string[],
 ): TileHexagonData {
   return {
     index,
@@ -172,41 +136,29 @@ function createTileHexagon(
 
     terrain,
 
-    level: level ?? null,
+    site,
 
-    site: null,
+    enemy,
 
-    enemy: null,
-
-    units: [],
+    units,
   }
 }
 
 /**
- * Crée une tuile.
+ * Crée une tuile statique.
  */
 export function createTile({
   id,
-  position = {
-    q: 0,
-    r: 0,
-  },
-  rotation = 0,
-  level = undefined,
+  level,
   terrains = [],
+  sites = [],
+  enemies = [],
+  units = [],
 }: CreateTileOptions): Tile {
   return {
     id,
 
-    position: {
-      q: position.q,
-      r: position.r,
-    },
-
-    rotation:
-      normalizeRotation(
-        rotation,
-      ),
+    level,
 
     hexagons:
       TILE_HEXES.map(
@@ -215,23 +167,23 @@ export function createTile({
             hexagon.index,
             hexagon.q,
             hexagon.r,
+
             terrains[
               hexagon.index
             ] ?? TERRAIN.PLAINS,
+
+            sites[
+              hexagon.index
+            ] ?? null,
+
+            enemies[
+              hexagon.index
+            ] ?? null,
+
+            units[
+              hexagon.index
+            ] ?? [],
           ),
       ),
   }
-}
-
-/**
- * Change la rotation d'une tuile.
- */
-export function rotateTile(
-  tile: Tile,
-  rotation: number,
-): void {
-  tile.rotation =
-    normalizeRotation(
-      rotation,
-    )
 }

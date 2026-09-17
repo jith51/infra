@@ -1,8 +1,9 @@
 <template>
   <g>
+
     <HexagonView
       v-for="hexagon in hexagons"
-      :key="hexagon.index"
+      :key="`${hexagon.q}:${hexagon.r}`"
       :x="hexagon.x"
       :y="hexagon.y"
       :q="hexagon.q"
@@ -10,30 +11,58 @@
       :size="hexSize"
       :terrain="hexagon.terrain"
       @click="
-        emit(
-          'hexagon-click',
+        handleHexagonClick(
           hexagon.index,
         )
       "
     />
+
   </g>
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+
+import {
+  computed,
+} from 'vue'
 
 import HexagonView from './HexagonView.vue'
 
-import {
-  getTileHexagonPosition,
-  type Tile,
-} from './game'
+import type {
+  Tile,
+} from './game/tile'
+
+import type {
+  HexPosition,
+} from './game/hexagon'
+
+/**
+ * ============================================================
+ * PROPS
+ * ============================================================
+ */
 
 interface Props {
+
+  /**
+   * Définition de la tuile.
+   */
   tile: Tile
 
+  /**
+   * Position du centre de la tuile
+   * sur le Board.
+   */
+  position: HexPosition
+
+  /**
+   * Taille d'un hexagone.
+   */
   hexSize: number
 
+  /**
+   * Origine SVG.
+   */
   originX: number
 
   originY: number
@@ -42,29 +71,42 @@ interface Props {
 const props =
   defineProps<Props>()
 
-const emit = defineEmits<{
-  hexagonClick: [
-    hexagonIndex: number,
-  ]
-}>()
+/**
+ * ============================================================
+ * EVENTS
+ * ============================================================
+ */
+
+const emit =
+  defineEmits<{
+    (
+      event: 'hexagon-click',
+      tileId: string,
+      hexagonIndex: number,
+    ): void
+  }>()
 
 /**
  * ============================================================
- * COORDONNEES HEXAGONALES -> SVG
+ * HEXAGONALE → SVG
  * ============================================================
- *
- * Conversion pour des hexagones "pointy top".
  */
+
 function hexToPixel(
   q: number,
   r: number,
 ) {
+
   return {
+
     x:
       props.originX +
       props.hexSize *
         Math.sqrt(3) *
-        (q + r / 2),
+        (
+          q +
+          r / 2
+        ),
 
     y:
       props.originY +
@@ -78,22 +120,31 @@ function hexToPixel(
  * ============================================================
  * HEXAGONES
  * ============================================================
- *
- * On récupère les coordonnées globales de chaque
- * hexagone via getTileHexagonPosition().
- *
- * Cette fonction tient déjà compte de la rotation
- * de la tuile.
  */
-const hexagons = computed(
-  () =>
-    props.tile.hexagons.map(
+
+const hexagons =
+  computed(() => {
+
+    return props.tile.hexagons.map(
       (hexagon) => {
-        const position =
-          getTileHexagonPosition(
-            props.tile,
-            hexagon,
-          )
+
+        /**
+         * Position globale de l'hexagone.
+         *
+         * La tuile est simplement translatée
+         * par rapport à son centre.
+         */
+        const position:
+          HexPosition = {
+
+          q:
+            props.position.q +
+            hexagon.localQ,
+
+          r:
+            props.position.r +
+            hexagon.localR,
+        }
 
         const pixel =
           hexToPixel(
@@ -102,6 +153,7 @@ const hexagons = computed(
           )
 
         return {
+
           ...hexagon,
 
           q:
@@ -117,6 +169,26 @@ const hexagons = computed(
             pixel.y,
         }
       },
-    ),
-)
+    )
+  })
+
+/**
+ * ============================================================
+ * CLIC HEXAGONE
+ * ============================================================
+ */
+
+function handleHexagonClick(
+  hexagonIndex: number,
+): void {
+
+  emit(
+    'hexagon-click',
+
+    props.tile.id,
+
+    hexagonIndex,
+  )
+}
+
 </script>

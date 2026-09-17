@@ -1,8 +1,13 @@
 <template>
   <div class="board-view">
+
     <h1>Mage Knight</h1>
 
     <div class="board-layout">
+
+      <!-- ================================================= -->
+      <!-- BOARD -->
+      <!-- ================================================= -->
 
       <svg
         width="1000"
@@ -10,44 +15,46 @@
         viewBox="0 0 1000 700"
         class="board"
       >
-        <!-- ================================================= -->
-        <!-- TUILES EXISTANTES -->
-        <!-- ================================================= -->
+
+        <!-- =============================================== -->
+        <!-- TUILES DU BOARD -->
+        <!-- =============================================== -->
 
         <TileView
-          v-for="tile in tiles"
-          :key="tile.id"
-          :tile="tile"
+          v-for="placedTile in tiles"
+          :key="placedTile.tile.id"
+          :tile="placedTile.tile"
+          :position="placedTile.position"
           :hex-size="30"
           :origin-x="500"
           :origin-y="350"
           @hexagon-click="
-            handleHexagonClick(
-              tile,
-              $event,
-            )
+            handleHexagonClick
           "
         />
 
-        <!-- ================================================= -->
-        <!-- TUILES CANDIDATES -->
-        <!-- ================================================= -->
+        <!-- =============================================== -->
+        <!-- PREVIEWS -->
+        <!-- =============================================== -->
 
-        <TileCandidateView
-          v-for="candidate in candidates"
-          :key="candidate.id"
-          :tile="candidate.tile"
+        <TilePreviewView
+          v-for="option in revealOptions"
+          :key="option.id"
+          :position="
+            option.placements[0].position
+          "
           :hex-size="30"
           :origin-x="500"
           :origin-y="350"
-          @select="
-            selectCandidate(candidate)
+          :level="2"
+          @click="
+            handlePreviewClick(option)
           "
         />
 
-        <!-- ================================================= -->
+        <!-- =============================================== -->
         <!-- JOUEUR -->
-        <!-- ================================================= -->
+        <!-- =============================================== -->
 
         <circle
           v-if="playerPosition"
@@ -59,9 +66,9 @@
 
       </svg>
 
-      <!-- =================================================== -->
-      <!-- INFORMATIONS -->
-      <!-- =================================================== -->
+      <!-- ================================================= -->
+      <!-- PANNEAU -->
+      <!-- ================================================= -->
 
       <aside class="game-panel">
 
@@ -81,56 +88,53 @@
           </strong>
         </p>
 
-        <template
-          v-if="candidates.length"
+        <hr />
+
+        <h2>Révélation</h2>
+
+        <p
+          v-if="
+            revealOptions.length === 0
+          "
         >
-          <hr />
+          Aucune tuile disponible.
+        </p>
 
-          <h2>
-            Nouvelles tuiles
-          </h2>
-
-          <p>
-            Cliquez sur une tuile
-            pour la sélectionner.
-          </p>
-
-          <p>
-            {{ candidates.length }}
-            possibilité(s)
-          </p>
-        </template>
+        <p
+          v-else
+        >
+          {{ revealOptions.length }}
+          preview(s)
+        </p>
 
       </aside>
 
     </div>
+
   </div>
 </template>
 
 <script setup lang="ts">
+
 import {
   computed,
   ref,
 } from 'vue'
 
 import TileView from './TileView.vue'
-import TileCandidateView from './TileCandidateView.vue'
+
+import TilePreviewView from './TilePreviewView.vue'
 
 import {
   createInitialBoard,
   getTiles,
-  addTile,
   type Board,
 } from './game/board'
 
 import {
-  createTile,
-  type Tile,
-} from './game/tile'
-
-import {
   getTileHexagonPosition,
-} from './game/tile'
+  type TileHexagonData,
+} from './game/placement'
 
 import {
   getRevealOptions,
@@ -138,13 +142,12 @@ import {
 } from './game/reveal'
 
 import type {
-  TilePlacement,
-} from './game/placement'
+  HexPosition,
+} from './game/hexagon'
 
 import type {
   Player,
 } from './game/player'
-
 
 /**
  * ============================================================
@@ -152,10 +155,10 @@ import type {
  * ============================================================
  */
 
-const board = ref<Board>(
-  createInitialBoard(),
-)
-
+const board =
+  ref<Board>(
+    createInitialBoard(),
+  )
 
 /**
  * ============================================================
@@ -163,13 +166,13 @@ const board = ref<Board>(
  * ============================================================
  */
 
-const player = ref<Player>({
-  tileId:
-    board.value.startingTiles.tip,
+const player =
+  ref<Player>({
+    tileId:
+      board.value.startingTileId,
 
-  hexagonIndex: 0,
-})
-
+    hexagonIndex: 0,
+  })
 
 /**
  * ============================================================
@@ -177,12 +180,12 @@ const player = ref<Player>({
  * ============================================================
  */
 
-const tiles = computed(() =>
-  getTiles(
-    board.value,
-  ),
-)
-
+const tiles =
+  computed(() =>
+    getTiles(
+      board.value,
+    ),
+  )
 
 /**
  * ============================================================
@@ -190,159 +193,90 @@ const tiles = computed(() =>
  * ============================================================
  */
 
-const revealOptions = computed(
-  () =>
+const revealOptions =
+  computed(() =>
     getRevealOptions(
       board.value,
       player.value,
     ),
-)
-
-
-/**
- * ============================================================
- * CANDIDATE
- * ============================================================
- */
-
-interface TileCandidate {
-  id: string
-
-  tile: Tile
-
-  placement: TilePlacement
-
-  revealOption: RevealOption
-}
-
-
-/**
- * Création des tuiles candidates.
- *
- * Chaque placement retourné par reveal.ts
- * devient une tuile temporaire affichée
- * en fade sur le plateau.
- */
-const candidates = computed<
-  TileCandidate[]
->(() => {
-
-  return revealOptions.value.flatMap(
-    (option) =>
-      option.placements.map(
-        (placement) => {
-
-          const id =
-            `candidate-${option.rule.id}-${placement.position.q}-${placement.position.r}-${placement.rotation}`
-
-          const tile =
-            createTile({
-              id,
-
-              position: {
-                q:
-                  placement.position.q,
-
-                r:
-                  placement.position.r,
-              },
-
-              rotation:
-                placement.rotation,
-            })
-
-          return {
-            id,
-
-            tile,
-
-            placement,
-
-            revealOption:
-              option,
-          }
-        },
-      ),
   )
-})
-
 
 /**
  * ============================================================
- * CLIC HEXAGONE
+ * CLIC SUR UN HEXAGONE
  * ============================================================
  */
 
 function handleHexagonClick(
-  tile: Tile,
+  tileId: string,
   hexagonIndex: number,
 ): void {
 
   player.value = {
-    tileId:
-      tile.id,
+    tileId,
 
     hexagonIndex,
   }
 
   console.log(
     '[PLAYER]',
-    tile.id,
+    tileId,
     hexagonIndex,
   )
 }
 
-
 /**
  * ============================================================
- * SELECTION D'UNE CANDIDATE
+ * CLIC SUR UNE PREVIEW
  * ============================================================
  */
 
-function selectCandidate(
-  candidate: TileCandidate,
+function handlePreviewClick(
+  option: RevealOption,
 ): void {
 
   console.log(
-    '[CANDIDATE SELECTED]',
-    candidate,
+    '[PREVIEW]',
+    option,
   )
 
   /**
-   * Pour l'instant :
-   *
-   * on affiche simplement ce qui
-   * a été sélectionné.
+   * Pour l'instant on ne place rien.
    *
    * La prochaine étape sera :
    *
-   * addTile(board, candidate.tile)
+   * 1. choisir une vraie Tile
+   * 2. choisir son orientation
+   * 3. la placer dans le Board
    */
 }
 
-
 /**
  * ============================================================
- * POSITION SVG DU JOUEUR
+ * POSITION DU JOUEUR
  * ============================================================
  */
 
 const playerPosition =
   computed(() => {
 
-    const tile =
-      tiles.value.find(
-        (tile) =>
-          tile.id ===
-          player.value.tileId,
+    /**
+     * Récupère la tuile du joueur.
+     */
+    const placedTile =
+      board.value.tiles.get(
+        player.value.tileId,
       )
 
-    if (!tile) {
+    if (!placedTile) {
       return null
     }
 
+    /**
+     * Récupère l'hexagone.
+     */
     const hexagon =
-      tile.hexagons.find(
+      placedTile.tile.hexagons.find(
         (hexagon) =>
           hexagon.index ===
           player.value.hexagonIndex,
@@ -352,31 +286,63 @@ const playerPosition =
       return null
     }
 
-    const position =
-      getTileHexagonPosition(
-        tile,
-        hexagon,
-      )
+    /**
+     * Position globale.
+     *
+     * Pour le moment l'orientation
+     * du placement est 0.
+     */
+    const position:
+      HexPosition = {
+      q:
+        placedTile.position.q +
+        hexagon.localQ,
 
-    const hexSize = 30
-
-    return {
-      x:
-        500 +
-        hexSize *
-          Math.sqrt(3) *
-          (
-            position.q +
-            position.r / 2
-          ),
-
-      y:
-        350 +
-        hexSize *
-          (3 / 2) *
-          position.r,
+      r:
+        placedTile.position.r +
+        hexagon.localR,
     }
+
+    /**
+     * Conversion hexagone → SVG.
+     */
+    return hexToPixel(
+      position.q,
+      position.r,
+    )
   })
+
+/**
+ * ============================================================
+ * HEXAGONE → SVG
+ * ============================================================
+ */
+
+function hexToPixel(
+  q: number,
+  r: number,
+) {
+
+  const hexSize = 30
+
+  return {
+    x:
+      500 +
+      hexSize *
+        Math.sqrt(3) *
+        (
+          q +
+          r / 2
+        ),
+
+    y:
+      350 +
+      hexSize *
+        (3 / 2) *
+        r,
+  }
+}
+
 </script>
 
 <style scoped>
@@ -412,8 +378,11 @@ const playerPosition =
 
 .player {
   pointer-events: none;
+
   fill: blue;
+
   stroke: white;
+
   stroke-width: 2;
 }
 

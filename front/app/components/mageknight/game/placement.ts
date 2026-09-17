@@ -1,7 +1,4 @@
 // src/game/placement.ts
-import {
-  isInsideWedge,
-} from './wedge'
 
 import {
   HEX_DIRECTIONS,
@@ -9,58 +6,102 @@ import {
   type HexPosition,
 } from './hexagon'
 
-import {
-  getTileHexagonPosition,
-  type Tile,
+import type {
+  Tile,
+  TileHexagonData,
 } from './tile'
 
 import type { Board } from './board'
 
 /**
- * Un contact entre deux hexagones.
+ * ============================================================
+ * ORIENTATION
+ * ============================================================
  *
- * Exemple :
+ * Une tuile peut être orientée selon 6 orientations.
  *
- * LEFT[1] touche TIP[3]
+ * L'orientation 0 correspond à sa définition originale.
  */
-export interface TileContact {
-  tileId: string
-  hexagonIndex: number
+export type TileOrientation =
+  0 | 1 | 2 | 3 | 4 | 5
 
-  otherTileId: string
-  otherHexagonIndex: number
+/**
+ * ============================================================
+ * PLACEMENT
+ * ============================================================
+ */
+
+export interface TilePlacement {
+
+  /**
+   * Position du centre de la tuile
+   * dans le Board.
+   */
+  position: HexPosition
+
+  /**
+   * Orientation de la tuile.
+   */
+  orientation: TileOrientation
 }
 
 /**
- * Contraintes de placement d'une tuile.
+ * ============================================================
+ * CONTACT
+ * ============================================================
  */
+
+/**
+ * Contact entre un hexagone de la nouvelle tuile
+ * et un hexagone déjà présent sur le Board.
+ */
+export interface TileContact {
+
+  /**
+   * Index de l'hexagone de la nouvelle tuile.
+   */
+  hexagonIndex: number
+
+  /**
+   * Position globale de l'hexagone
+   * auquel il doit être adjacent.
+   */
+  otherPosition: HexPosition
+}
+
+/**
+ * ============================================================
+ * CONTRAINTES
+ * ============================================================
+ */
+
 export interface TilePlacementConstraints {
+
   /**
    * Tuile que l'on cherche à placer.
    */
   tile: Tile
 
   /**
-   * Les contacts que cette tuile doit respecter.
+   * Contacts que le placement doit respecter.
    */
-  contacts: TileContact[]
+  contacts?: TileContact[]
 }
 
 /**
- * Résultat d'un placement.
+ * ============================================================
+ * POSITIONS ADJACENTES
+ * ============================================================
  */
-export interface TilePlacement {
-  position: HexPosition
-  rotation: number
-}
 
 /**
- * Retourne les six positions adjacentes
- * à une position hexagonale.
+ * Retourne les six positions hexagonales
+ * autour d'une position.
  */
 export function getAdjacentPositions(
   position: HexPosition,
 ): HexPosition[] {
+
   return Object.values(
     HEX_DIRECTIONS,
   ).map(
@@ -77,64 +118,22 @@ export function getAdjacentPositions(
 }
 
 /**
- * Retourne la position globale d'un hexagone
- * d'une tuile.
+ * ============================================================
+ * ADJACENCE
+ * ============================================================
  */
-function getHexagonPosition(
-  tile: Tile,
-  hexagonIndex: number,
-): HexPosition {
-  const hexagon =
-    tile.hexagons.find(
-      (hexagon) =>
-        hexagon.index ===
-        hexagonIndex,
-    )
-
-  if (!hexagon) {
-    throw new Error(
-      `Hexagone ${hexagonIndex} introuvable dans la tuile "${tile.id}".`,
-    )
-  }
-
-  return getTileHexagonPosition(
-    tile,
-    hexagon,
-  )
-}
 
 /**
- * Retourne la position locale d'un hexagone
- * dans une tuile centrée en 0,0.
- */
-function getLocalHexagonPosition(
-  tile: Tile,
-  hexagonIndex: number,
-): HexPosition {
-  const originTile: Tile = {
-    ...tile,
-
-    position: {
-      q: 0,
-      r: 0,
-    },
-  }
-
-  return getHexagonPosition(
-    originTile,
-    hexagonIndex,
-  )
-}
-
-/**
- * Teste si deux positions hexagonales
- * sont adjacentes.
+ * Vérifie si deux hexagones sont voisins.
  */
 export function areAdjacent(
   a: HexPosition,
   b: HexPosition,
 ): boolean {
-  return getAdjacentPositions(a).some(
+
+  return getAdjacentPositions(
+    a,
+  ).some(
     (position) =>
       position.q === b.q &&
       position.r === b.r,
@@ -142,76 +141,142 @@ export function areAdjacent(
 }
 
 /**
- * Retourne toutes les positions possibles
- * pour un hexagone cible lorsqu'il doit toucher
- * un hexagone de référence.
+ * ============================================================
+ * ROTATION
+ * ============================================================
  */
-function getCandidatePositions(
-  referenceTile: Tile,
-  referenceHexagonIndex: number,
-): HexPosition[] {
-  const referencePosition =
-    getHexagonPosition(
-      referenceTile,
-      referenceHexagonIndex,
-    )
 
-  return getAdjacentPositions(
-    referencePosition,
-  )
+/**
+ * Normalise une orientation entre 0 et 5.
+ */
+export function normalizeOrientation(
+  orientation: number,
+): TileOrientation {
+
+  const value =
+    (
+      orientation % 6 +
+      6
+    ) % 6
+
+  return value as TileOrientation
 }
 
 /**
- * Retourne la position du centre de la tuile
- * à partir de la position globale d'un de ses
- * hexagones.
+ * Effectue une rotation de 60° sur
+ * une coordonnée hexagonale axiale.
+ *
+ * q = x
+ * r = z
+ * y = -x-z
  */
-function getTilePositionFromHexagon(
-  tile: Tile,
-  hexagonIndex: number,
-  globalHexagonPosition: HexPosition,
+export function rotateHex(
+  q: number,
+  r: number,
+  orientation: number,
 ): HexPosition {
-  const localPosition =
-    getLocalHexagonPosition(
-      tile,
-      hexagonIndex,
+
+  const normalized =
+    normalizeOrientation(
+      orientation,
     )
 
-  return {
-    q:
-      globalHexagonPosition.q -
-      localPosition.q,
+  let x = q
+  let z = r
+  let y = -x - z
 
-    r:
-      globalHexagonPosition.r -
-      localPosition.r,
+  for (
+    let i = 0;
+    i < normalized;
+    i++
+  ) {
+
+    const newX = -z
+    const newY = -x
+    const newZ = -y
+
+    x = newX
+    y = newY
+    z = newZ
+  }
+
+  return {
+    q: x,
+    r: z,
   }
 }
 
 /**
- * Vérifie si une tuile placée à une position
- * donnée entre en collision avec le plateau.
+ * ============================================================
+ * POSITION D'UN HEXAGONE
+ * ============================================================
  */
-function hasCollision(
+
+/**
+ * Retourne la position globale d'un hexagone
+ * lorsqu'une tuile est placée.
+ *
+ * La position de la tuile représente son centre.
+ */
+export function getTileHexagonPosition(
+  tile: Tile,
+  hexagon: TileHexagonData,
+  placement: TilePlacement,
+): HexPosition {
+
+  const rotated =
+    rotateHex(
+      hexagon.localQ,
+      hexagon.localR,
+      placement.orientation,
+    )
+
+  return {
+    q:
+      placement.position.q +
+      rotated.q,
+
+    r:
+      placement.position.r +
+      rotated.r,
+  }
+}
+
+/**
+ * ============================================================
+ * COLLISION
+ * ============================================================
+ */
+
+/**
+ * Vérifie si la tuile entrerait en collision
+ * avec un hexagone déjà présent sur le Board.
+ */
+export function hasCollision(
   board: Board,
   tile: Tile,
+  placement: TilePlacement,
 ): boolean {
+
   for (
     const hexagon of tile.hexagons
   ) {
+
     const position =
       getTileHexagonPosition(
         tile,
         hexagon,
+        placement,
+      )
+
+    const key =
+      hexagonKey(
+        position.q,
+        position.r,
       )
 
     if (
-      board.hexagons.has(
-        hexagonKey(
-          position.q,
-          position.r,
-        ),
-      )
+      board.hexagons.has(key)
     ) {
       return true
     }
@@ -221,84 +286,46 @@ function hasCollision(
 }
 
 /**
- * Vérifie que deux tuiles ne se chevauchent pas.
+ * ============================================================
+ * CONTACTS
+ * ============================================================
  */
-export function tilesOverlap(
-  a: Tile,
-  b: Tile,
-): boolean {
-  const occupied =
-    new Set(
-      a.hexagons.map(
-        (hexagon) => {
-          const position =
-            getTileHexagonPosition(
-              a,
-              hexagon,
-            )
-
-          return hexagonKey(
-            position.q,
-            position.r,
-          )
-        },
-      ),
-    )
-
-  return b.hexagons.some(
-    (hexagon) => {
-      const position =
-        getTileHexagonPosition(
-          b,
-          hexagon,
-        )
-
-      return occupied.has(
-        hexagonKey(
-          position.q,
-          position.r,
-        ),
-      )
-    },
-  )
-}
 
 /**
  * Vérifie tous les contacts demandés.
  */
-function satisfiesContacts(
-  board: Board,
+export function satisfiesContacts(
   tile: Tile,
+  placement: TilePlacement,
   contacts: TileContact[],
 ): boolean {
+
   for (
     const contact of contacts
   ) {
-    const referenceTile =
-      board.tiles.get(
-        contact.otherTileId,
+
+    const hexagon =
+      tile.hexagons.find(
+        (hexagon) =>
+          hexagon.index ===
+          contact.hexagonIndex,
       )
 
-    if (!referenceTile) {
+    if (!hexagon) {
       return false
     }
 
-    const targetPosition =
-      getHexagonPosition(
+    const position =
+      getTileHexagonPosition(
         tile,
-        contact.hexagonIndex,
-      )
-
-    const referencePosition =
-      getHexagonPosition(
-        referenceTile,
-        contact.otherHexagonIndex,
+        hexagon,
+        placement,
       )
 
     if (
       !areAdjacent(
-        targetPosition,
-        referencePosition,
+        position,
+        contact.otherPosition,
       )
     ) {
       return false
@@ -309,97 +336,141 @@ function satisfiesContacts(
 }
 
 /**
- * Recherche tous les placements possibles
- * respectant les contraintes.
+ * ============================================================
+ * GENERATION DES PLACEMENTS
+ * ============================================================
+ */
+
+/**
+ * Recherche les placements possibles d'une tuile.
  *
- * Les 6 rotations sont testées.
+ * Si des contacts sont fournis :
+ *
+ *     - on utilise le premier contact
+ *       pour générer les positions candidates ;
+ *
+ *     - on vérifie ensuite tous les contacts.
+ *
+ * Si aucun contact n'est fourni :
+ *
+ *     - aucune position n'est générée.
+ *
+ * Le Board n'est jamais modifié.
  */
 export function findTilePlacements(
   board: Board,
   constraints: TilePlacementConstraints,
 ): TilePlacement[] {
+
   const {
     tile,
-    contacts,
+    contacts = [],
   } = constraints
 
+  /**
+   * Sans contrainte, nous ne savons pas encore
+   * où proposer la tuile.
+   */
   if (
     contacts.length === 0
   ) {
     return []
   }
 
-  const placements: TilePlacement[] = []
+  const placements:
+    TilePlacement[] = []
 
+  /**
+   * Premier contact utilisé comme point
+   * de génération des candidats.
+   */
+  const firstContact =
+    contacts[0]
+
+  /**
+   * Les six orientations sont testées.
+   *
+   * C'est volontairement conservé ici,
+   * même si plus tard l'utilisateur pourra
+   * choisir lui-même l'orientation.
+   */
   for (
-    let rotation = 0;
-    rotation < 6;
-    rotation++
+    let orientation = 0;
+    orientation < 6;
+    orientation++
   ) {
-    const rotatedTile: Tile = {
-      ...tile,
-
-      rotation,
-
-      position: {
-        q: 0,
-        r: 0,
-      },
-
-      hexagons:
-        tile.hexagons.map(
-          (hexagon) => ({
-            ...hexagon,
-          }),
-        ),
-    }
 
     /**
-     * Le premier contact sert à générer
-     * les positions candidates.
+     * Les hexagones candidats doivent être
+     * voisins de l'hexagone de référence.
      */
-    const firstContact =
-      contacts[0]
-
-    const referenceTile =
-      board.tiles.get(
-        firstContact.otherTileId,
+    const candidatePositions =
+      getAdjacentPositions(
+        firstContact.otherPosition,
       )
 
-    if (!referenceTile) {
+    /**
+     * Hexagone de la nouvelle tuile
+     * concerné par le premier contact.
+     */
+    const hexagon =
+      tile.hexagons.find(
+        (hexagon) =>
+          hexagon.index ===
+          firstContact.hexagonIndex,
+      )
+
+    if (!hexagon) {
       continue
     }
 
-    const candidateHexagonPositions =
-      getCandidatePositions(
-        referenceTile,
-        firstContact.otherHexagonIndex,
+    /**
+     * Position locale de cet hexagone
+     * après rotation.
+     */
+    const rotated =
+      rotateHex(
+        hexagon.localQ,
+        hexagon.localR,
+        orientation,
       )
 
+    /**
+     * Pour chaque position adjacente,
+     * on déduit la position du centre
+     * de la nouvelle tuile.
+     */
     for (
-      const candidateHexagonPosition
-      of candidateHexagonPositions
+      const hexagonPosition
+      of candidatePositions
     ) {
-      const position =
-        getTilePositionFromHexagon(
-          rotatedTile,
-          firstContact.hexagonIndex,
-          candidateHexagonPosition,
-        )
 
-      const candidateTile: Tile = {
-        ...rotatedTile,
+      const position:
+        HexPosition = {
+        q:
+          hexagonPosition.q -
+          rotated.q,
 
+        r:
+          hexagonPosition.r -
+          rotated.r,
+      }
+
+      const placement:
+        TilePlacement = {
         position,
+
+        orientation:
+          orientation as TileOrientation,
       }
 
       /**
-       * Vérification des contacts.
+       * Vérifie les contacts.
        */
       if (
         !satisfiesContacts(
-          board,
-          candidateTile,
+          tile,
+          placement,
           contacts,
         )
       ) {
@@ -407,40 +478,50 @@ export function findTilePlacements(
       }
 
       /**
-       * Vérification des collisions.
+       * Vérifie les collisions.
        */
       if (
         hasCollision(
           board,
-          candidateTile,
+          tile,
+          placement,
         )
       ) {
         continue
       }
 
       /**
-       * Vérification de la frontière
-       * du wedge.
+       * Evite les doublons.
        */
-      if (
-        !isInsideWedge(
-          board,
-          position,
+      const exists =
+        placements.some(
+          (existing) =>
+            existing.position.q ===
+              placement.position.q &&
+            existing.position.r ===
+              placement.position.r &&
+            existing.orientation ===
+              placement.orientation,
         )
-      ) {
+
+      if (exists) {
         continue
       }
-      
-      placements.push({
-        position,
 
-        rotation,
-      })
+      placements.push(
+        placement,
+      )
     }
   }
 
   return placements
 }
+
+/**
+ * ============================================================
+ * PREMIER PLACEMENT
+ * ============================================================
+ */
 
 /**
  * Retourne le premier placement valide.
@@ -449,6 +530,7 @@ export function findTilePlacement(
   board: Board,
   constraints: TilePlacementConstraints,
 ): TilePlacement | null {
+
   return (
     findTilePlacements(
       board,
